@@ -1,0 +1,313 @@
+// Main Live2D Cubism 4 renderer
+class Live2DRenderer {
+    constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+        this.model = null;
+        this.isDragging = false;
+        this.lastX = 0;
+        this.lastY = 0;
+        this.viewMatrix = null;
+        this.dragScale = 1.0;
+        this.lastUpdate = Date.now();
+
+        this.initCanvas();
+        this.setupEventListeners();
+        this.initializeCubism();
+    }
+
+    initCanvas() {
+        // Set canvas size
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
+        // Initialize WebGL
+        if (!this.ctx) {
+            document.getElementById('status').innerHTML = 'WebGL not supported!';
+            return;
+        }
+
+        // Enable depth testing and blending
+        this.ctx.enable(this.ctx.DEPTH_TEST);
+        this.ctx.enable(this.ctx.BLEND);
+        this.ctx.blendFunc(this.ctx.SRC_ALPHA, this.ctx.ONE_MINUS_SRC_ALPHA);
+    }
+
+    resizeCanvas() {
+        const container = document.getElementById('canvas-container');
+        this.canvas.width = container.clientWidth;
+        this.canvas.height = container.clientHeight;
+
+        if (this.ctx) {
+            this.ctx.viewport(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    setupEventListeners() {
+        // Mouse events for interaction
+        this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
+        this.canvas.addEventListener('mouseleave', () => this.handleMouseUp());
+
+        // Touch events for mobile
+        this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e));
+        this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e));
+        this.canvas.addEventListener('touchend', () => this.handleTouchEnd());
+
+        // Mouse wheel for zoom
+        this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+    }
+
+    initializeCubism() {
+        try {
+            // Initialize Cubism Framework
+            if (Live2DCubismFramework.CubismFramework.startUp()) {
+                Live2DCubismFramework.CubismFramework.initialize();
+                document.getElementById('status').innerHTML = 'Framework initialized. Loading model...';
+                this.loadModel("{LOAD_MODEL}");
+            } else {
+                document.getElementById('status').innerHTML = 'Failed to initialize Cubism Framework';
+            }
+        } catch (error) {
+            document.getElementById('status').innerHTML = 'Error initializing Cubism: ' + error.message;
+            console.error('Cubism initialization error:', error);
+        }
+    }
+
+    handleMouseDown(e) {
+        this.isDragging = true;
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
+    }
+
+    handleMouseMove(e) {
+        if (this.isDragging && this.model) {
+            const deltaX = e.clientX - this.lastX;
+            const deltaY = e.clientY - this.lastY;
+
+            // Update model parameters based on drag
+            this.updateModelDrag(deltaX, deltaY);
+
+            this.lastX = e.clientX;
+            this.lastY = e.clientY;
+        }
+    }
+
+    handleMouseUp() {
+        this.isDragging = false;
+    }
+
+    handleTouchStart(e) {
+        e.preventDefault();
+        if (e.touches.length > 0) {
+            this.isDragging = true;
+            this.lastX = e.touches[0].clientX;
+            this.lastY = e.touches[0].clientY;
+        }
+    }
+
+    handleTouchMove(e) {
+        e.preventDefault();
+        if (this.isDragging && e.touches.length > 0 && this.model) {
+            const deltaX = e.touches[0].clientX - this.lastX;
+            const deltaY = e.touches[0].clientY - this.lastY;
+
+            this.updateModelDrag(deltaX, deltaY);
+
+            this.lastX = e.touches[0].clientX;
+            this.lastY = e.touches[0].clientY;
+        }
+    }
+
+    handleTouchEnd() {
+        this.isDragging = false;
+    }
+
+    handleWheel(e) {
+        e.preventDefault();
+        if (this.model) {
+            // Simple zoom implementation
+            this.dragScale += e.deltaY * -0.001;
+            this.dragScale = Math.min(Math.max(0.5, this.dragScale), 2.0);
+        }
+    }
+
+    updateModelDrag(deltaX, deltaY) {
+        if (this.model) {
+            // Update look at parameters
+            const lookX = (deltaX / this.canvas.width) * 30;
+            const lookY = (deltaY / this.canvas.height) * 30;
+
+            if (typeof this.model.setParameterValueById === 'function') {
+                this.model.setParameterValueById('ParamAngleX', lookX);
+                this.model.setParameterValueById('ParamAngleY', lookY);
+                this.model.setParameterValueById('ParamEyeBallX', lookX / 2);
+                this.model.setParameterValueById('ParamEyeBallY', lookY / 2);
+            }
+        }
+    }
+
+    async loadModel(modelPath) {
+        if (!modelPath) {
+            document.getElementById('status').innerHTML = 'No model path provided';
+            return;
+        }
+
+        try {
+            document.getElementById('status').innerHTML = 'Loading model...';
+
+            // Load model setting JSON
+            const response = await fetch(modelPath);
+            if (!response.ok) {
+                throw new Error(`Failed to load model: ${response.status} ${response.statusText}`);
+            }
+
+            const modelSetting = await response.json();
+            document.getElementById('status').innerHTML = 'Model setting loaded. Creating model...';
+
+            // Create Cubism user model
+            this.model = new Live2DCubismFramework.CubismUserModel();
+            this.model.initialize();
+
+            // Load moc3 file if available
+            const modelFileName = modelSetting.FileReferences.Moc || 'huohuo.moc3';
+            const modelUrl = modelPath.replace('model3.json', modelFileName);
+
+            try {
+                const mocResponse = await fetch(modelUrl);
+                if (mocResponse.ok) {
+                    const mocArrayBuffer = await mocResponse.arrayBuffer();
+                    if (this.model.loadModel(mocArrayBuffer)) {
+                        document.getElementById('status').innerHTML = 'Model loaded successfully!';
+                        // Start the render loop
+                        this.startRenderLoop();
+                    } else {
+                        document.getElementById('status').innerHTML = 'Failed to load model data';
+                    }
+                } else {
+                    document.getElementById('status').innerHTML = 'Model data file not found: ' + modelUrl;
+                }
+            } catch (mocError) {
+                console.error('Error loading moc file:', mocError);
+                document.getElementById('status').innerHTML = 'Error loading model data: ' + mocError.message;
+            }
+
+        } catch (error) {
+            document.getElementById('status').innerHTML = 'Error loading model: ' + error.message;
+            console.error('Error loading model:', error);
+        }
+    }
+
+    startRenderLoop() {
+        const renderLoop = () => {
+            if (this.model) {
+                // Update model
+                this.model.update();
+
+                // Draw model
+                this.drawModel();
+            }
+
+            requestAnimationFrame(renderLoop);
+        };
+
+        renderLoop();
+    }
+
+    drawModel() {
+        // Clear canvas
+        this.ctx.clearColor(0.8, 0.8, 0.9, 1.0);
+        this.ctx.clear(this.ctx.COLOR_BUFFER_BIT | this.ctx.DEPTH_BUFFER_BIT);
+
+        // Draw a representation of the model
+        // This is a simplified visualization - a real implementation would render the actual model
+        this.ctx.fillStyle = '#3498db';
+        this.ctx.beginPath();
+        this.ctx.arc(
+            this.canvas.width / 2,
+            this.canvas.height / 2,
+            Math.min(this.canvas.width, this.canvas.height) * 0.2,
+            0,
+            Math.PI * 2
+        );
+        this.ctx.fill();
+
+        // Draw face features
+        this.ctx.fillStyle = 'white';
+        // Eyes
+        this.ctx.beginPath();
+        this.ctx.arc(
+            this.canvas.width / 2 - 30,
+            this.canvas.height / 2 - 20,
+            10, 0, Math.PI * 2
+        );
+        this.ctx.arc(
+            this.canvas.width / 2 + 30,
+            this.canvas.height / 2 - 20,
+            10, 0, Math.PI * 2
+        );
+        this.ctx.fill();
+
+        // Mouth
+        this.ctx.beginPath();
+        this.ctx.arc(
+            this.canvas.width / 2,
+            this.canvas.height / 2 + 20,
+            15, 0, Math.PI
+        );
+        this.ctx.stroke();
+    }
+
+    toggleDragging() {
+        this.isDragging = !this.isDragging;
+        document.getElementById('drag-status').textContent = this.isDragging ? 'ON' : 'OFF';
+    }
+
+    resetView() {
+        this.dragScale = 1.0;
+        if (this.model && typeof this.model.setParameterValueById === 'function') {
+            // Reset model parameters
+            this.model.setParameterValueById('ParamAngleX', 0);
+            this.model.setParameterValueById('ParamAngleY', 0);
+            this.model.setParameterValueById('ParamEyeBallX', 0);
+            this.model.setParameterValueById('ParamEyeBallY', 0);
+        }
+    }
+
+    playMotion(motionFile) {
+        document.getElementById('status').innerHTML = 'Playing motion: ' + motionFile;
+        // In a real implementation, this would play the specified motion
+        console.log('Playing motion:', motionFile);
+    }
+}
+
+let live2dRenderer;
+window.addEventListener('load', () => {
+    live2dRenderer = new Live2DRenderer();
+});
+
+// Global functions for buttons
+function loadModel(modelFile) {
+    if (live2dRenderer) {
+        live2dRenderer.loadModel(modelFile);
+    }
+}
+
+function resetView() {
+    if (live2dRenderer) {
+        live2dRenderer.resetView();
+    }
+}
+
+function toggleDragging() {
+    if (live2dRenderer) {
+        live2dRenderer.toggleDragging();
+    }
+}
+
+function playMotion(motionFile) {
+    if (live2dRenderer) {
+        live2dRenderer.playMotion(motionFile);
+    }
+}

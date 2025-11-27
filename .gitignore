@@ -29,9 +29,9 @@ venv/
 pipenv/
 poetry.lock
 
+models/meya/
 # Build artifacts
 build/
-dist/
 *.out
 *.exe
 *.dll

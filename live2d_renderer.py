@@ -12,6 +12,7 @@ import numpy as np
 from PIL import Image
 import pygame
 from pygame.locals import *
+from OpenGL.GL import *
 
 # Initialize pygame
 pygame.init()
@@ -92,7 +93,7 @@ class Live2DRenderer:
         glViewport(0, 0, width, height)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        gluOrtho2D(0, width, height, 0)
+        # gluOrtho2D(0, width, height, 0)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         
@@ -318,7 +319,7 @@ class Live2DRenderer:
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
-        gluOrtho2D(0, self.width, 0, self.height)
+        # gluOrtho2D(0, self.width, 0, self.height)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         
@@ -362,7 +363,7 @@ def main():
     renderer = Live2DRenderer(1024, 768)
     
     # Try to load a default model if provided
-    default_model_path = "./models/default"
+    default_model_path = "models/huohuo"
     if os.path.exists(default_model_path):
         renderer.load_model(default_model_path)
     else:

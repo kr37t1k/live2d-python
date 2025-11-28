@@ -1,49 +1,43 @@
 ```
-# Backup files
-*.backup
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Logs
+*.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Build artifacts
+dist/
+build/
+target/
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Logs
-*.log
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Dependencies
-node_modules/
+.Python
 venv/
 .venv/
-pipenv/
-poetry.lock
-
-models/meya/
-# Build artifacts
-build/
-*.out
-*.exe
-*.dll
-*.so
-*.a
+.env/
 
 # Coverage
-.coverage
 coverage/
 htmlcov/
+.coverage
 
-# OS
+# System
 .DS_Store
 Thumbs.db
 
@@ -66,4 +60,8 @@ Thumbs.db
 *.Z
 *.lz
 *.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```

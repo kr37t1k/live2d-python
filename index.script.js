@@ -65,7 +65,7 @@ class Live2DRenderer {
             if (Live2DCubismFramework.CubismFramework.startUp()) {
                 Live2DCubismFramework.CubismFramework.initialize();
                 document.getElementById('status').innerHTML = 'Framework initialized. Loading model...';
-                this.loadModel("C:/Users/user/Documents/GitHub/live2d-python/models/huohuo/huohuo.model3.json");
+                this.loadModel("/models/huohuo/huohuo.model3.json");
             } else {
                 document.getElementById('status').innerHTML = 'Failed to initialize Cubism Framework';
             }

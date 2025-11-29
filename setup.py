@@ -1,61 +1,36 @@
 #!/usr/bin/env python3
 """
-Setup script for Live2D Model Renderer
-Installs all required dependencies
+Setup script for Live2D Widget - PyQtWebEngine Module for Live2D Rendering
 """
 
-import subprocess
-import sys
-import os
+from setuptools import setup, find_packages
 
-def install_dependencies():
-    """Install required Python packages"""
-    print("Installing dependencies...")
-    
-    # Read requirements from file
-    req_file = os.path.join(os.path.dirname(__file__), 'requirements.txt')
-    
-    try:
-        with open(req_file, 'r') as f:
-            requirements = f.read().splitlines()
-        
-        # Filter out empty lines and comments
-        requirements = [req.strip() for req in requirements if req.strip() and not req.startswith('#')]
-        
-        for req in requirements:
-            print(f"Installing {req}...")
-            result = subprocess.run([sys.executable, '-m', 'pip', 'install', req], 
-                                  capture_output=True, text=True)
-            if result.returncode != 0:
-                print(f"Error installing {req}: {result.stderr}")
-                return False
-            else:
-                print(f"Successfully installed {req}")
-        
-        print("All dependencies installed successfully!")
-        return True
-        
-    except FileNotFoundError:
-        print(f"Requirements file not found: {req_file}")
-        return False
-    except Exception as e:
-        print(f"Error during installation: {e}")
-        return False
-
-def main():
-    print("Live2D Model Renderer - Setup")
-    print("=" * 40)
-    
-    if install_dependencies():
-        print("\nSetup completed successfully!")
-        print("\nTo run the application, use:")
-        print("  python run_live2d.py")
-        print("\nor")
-        print("  python live2d_renderer.py")
-    else:
-        print("\nSetup failed. Please install dependencies manually:")
-        print("  pip install -r requirements.txt")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
+setup(
+    name="live2d-widget",
+    version="1.0.0",
+    author="Your Name",
+    author_email="your.email@example.com",
+    description="A PyQtWebEngine widget for rendering Live2D models",
+    long_description=open("README.md").read() if os.path.exists("README.md") else "",
+    long_description_content_type="text/markdown",
+    url="https://github.com/yourusername/live2d-widget",
+    packages=find_packages(),
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+    ],
+    python_requires=">=3.8",
+    install_requires=[
+        "PyQt6>=6.4.0",
+        "PyQt6-WebEngine>=6.4.0",
+    ],
+    include_package_data=True,
+    keywords=["live2d", "pyqt", "qt", "widget", "3d", "animation", "model"],
+)

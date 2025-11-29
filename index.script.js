@@ -1,313 +1,184 @@
-// Main Live2D Cubism 4 renderer
-class Live2DRenderer {
-    constructor() {
-        this.canvas = document.getElementById('canvas');
-        this.ctx = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
-        this.model = null;
-        this.isDragging = false;
-        this.lastX = 0;
-        this.lastY = 0;
-        this.viewMatrix = null;
-        this.dragScale = 1.0;
-        this.lastUpdate = Date.now();
+const Application = PIXI.Application;
+const Loader = PIXI.Loader;
 
-        this.initCanvas();
-        this.setupEventListeners();
-        this.initializeCubism();
-    }
+// Global variables
+let app = null;
+let live2dModel = null;
+let isDragging = false;
+let dragEnabled = false;
 
-    initCanvas() {
-        // Set canvas size
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
+// Initialize PIXI Application
+function initApp() {
+    if (app) return;
 
-        // Initialize WebGL
-        if (!this.ctx) {
-            document.getElementById('status').innerHTML = 'WebGL not supported!';
-            return;
-        }
+    try {
+        app = new Application({
+            view: document.getElementById('canvas'),
+            backgroundColor: 0x0f0c29,
+            transparent: true,
+            resizeTo: window,
+            resolution: window.devicePixelRatio || 1
+        });
 
-        // Enable depth testing and blending
-        this.ctx.enable(this.ctx.DEPTH_TEST);
-        this.ctx.enable(this.ctx.BLEND);
-        this.ctx.blendFunc(this.ctx.SRC_ALPHA, this.ctx.ONE_MINUS_SRC_ALPHA);
-    }
-
-    resizeCanvas() {
-        const container = document.getElementById('canvas-container');
-        this.canvas.width = container.clientWidth;
-        this.canvas.height = container.clientHeight;
-
-        if (this.ctx) {
-            this.ctx.viewport(0, 0, this.canvas.width, this.canvas.height);
-        }
-    }
-
-    setupEventListeners() {
-        // Mouse events for interaction
-        this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
-        this.canvas.addEventListener('mouseleave', () => this.handleMouseUp());
-
-        // Touch events for mobile
-        this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e));
-        this.canvas.addEventListener('touchmove', (e) => this.handleTouchMove(e));
-        this.canvas.addEventListener('touchend', () => this.handleTouchEnd());
-
-        // Mouse wheel for zoom
-        this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
-    }
-
-    initializeCubism() {
-        try {
-            // Initialize Cubism Framework
-            if (Live2DCubismFramework.CubismFramework.startUp()) {
-                Live2DCubismFramework.CubismFramework.initialize();
-                document.getElementById('status').innerHTML = 'Framework initialized. Loading model...';
-                this.loadModel("C:/Users/user/Documents/GitHub/live2d-python/models/huohuo/huohuo.model3.json");
-            } else {
-                document.getElementById('status').innerHTML = 'Failed to initialize Cubism Framework';
+        window.addEventListener('resize', () => {
+            if (app) {
+                app.renderer.resize(window.innerWidth, window.innerHeight);
+                if (live2dModel) positionModel();
             }
-        } catch (error) {
-            document.getElementById('status').innerHTML = 'Error initializing Cubism: ' + error.message;
-            console.error('Cubism initialization error:', error);
+        });
+
+        console.log('✅ PIXI Application created (v6)');
+
+    } catch (error) {
+        console.error('PIXI init error:', error);
+        updateStatus(`❌ PIXI error: ${error.message}`);
+
+        // Fallback: Try alternative PIXI access
+        if (typeof Application === 'undefined') {
+            alert('PIXI not loaded! Check network tab for 404 errors.');
         }
-    }
-
-    handleMouseDown(e) {
-        this.isDragging = true;
-        this.lastX = e.clientX;
-        this.lastY = e.clientY;
-    }
-
-    handleMouseMove(e) {
-        if (this.isDragging && this.model) {
-            const deltaX = e.clientX - this.lastX;
-            const deltaY = e.clientY - this.lastY;
-
-            // Update model parameters based on drag
-            this.updateModelDrag(deltaX, deltaY);
-
-            this.lastX = e.clientX;
-            this.lastY = e.clientY;
-        }
-    }
-
-    handleMouseUp() {
-        this.isDragging = false;
-    }
-
-    handleTouchStart(e) {
-        e.preventDefault();
-        if (e.touches.length > 0) {
-            this.isDragging = true;
-            this.lastX = e.touches[0].clientX;
-            this.lastY = e.touches[0].clientY;
-        }
-    }
-
-    handleTouchMove(e) {
-        e.preventDefault();
-        if (this.isDragging && e.touches.length > 0 && this.model) {
-            const deltaX = e.touches[0].clientX - this.lastX;
-            const deltaY = e.touches[0].clientY - this.lastY;
-
-            this.updateModelDrag(deltaX, deltaY);
-
-            this.lastX = e.touches[0].clientX;
-            this.lastY = e.touches[0].clientY;
-        }
-    }
-
-    handleTouchEnd() {
-        this.isDragging = false;
-    }
-
-    handleWheel(e) {
-        e.preventDefault();
-        if (this.model) {
-            // Simple zoom implementation
-            this.dragScale += e.deltaY * -0.001;
-            this.dragScale = Math.min(Math.max(0.5, this.dragScale), 2.0);
-        }
-    }
-
-    updateModelDrag(deltaX, deltaY) {
-        if (this.model) {
-            // Update look at parameters
-            const lookX = (deltaX / this.canvas.width) * 30;
-            const lookY = (deltaY / this.canvas.height) * 30;
-
-            if (typeof this.model.setParameterValueById === 'function') {
-                this.model.setParameterValueById('ParamAngleX', lookX);
-                this.model.setParameterValueById('ParamAngleY', lookY);
-                this.model.setParameterValueById('ParamEyeBallX', lookX / 2);
-                this.model.setParameterValueById('ParamEyeBallY', lookY / 2);
-            }
-        }
-    }
-
-    async loadModel(modelPath) {
-        if (!modelPath) {
-            document.getElementById('status').innerHTML = 'No model path provided';
-            return;
-        }
-
-        try {
-            document.getElementById('status').innerHTML = 'Loading model...';
-
-            // Load model setting JSON
-            const response = await fetch(modelPath);
-            if (!response.ok) {
-                throw new Error(`Failed to load model: ${response.status} ${response.statusText}`);
-            }
-
-            const modelSetting = await response.json();
-            document.getElementById('status').innerHTML = 'Model setting loaded. Creating model...';
-
-            // Create Cubism user model
-            this.model = new Live2DCubismFramework.CubismUserModel();
-            this.model.initialize();
-
-            // Load moc3 file if available
-            const modelFileName = modelSetting.FileReferences.Moc || 'huohuo.moc3';
-            const modelUrl = modelPath.replace('model3.json', modelFileName);
-
-            try {
-                const mocResponse = await fetch(modelUrl);
-                if (mocResponse.ok) {
-                    const mocArrayBuffer = await mocResponse.arrayBuffer();
-                    if (this.model.loadModel(mocArrayBuffer)) {
-                        document.getElementById('status').innerHTML = 'Model loaded successfully!';
-                        // Start the render loop
-                        this.startRenderLoop();
-                    } else {
-                        document.getElementById('status').innerHTML = 'Failed to load model data';
-                    }
-                } else {
-                    document.getElementById('status').innerHTML = 'Model data file not found: ' + modelUrl;
-                }
-            } catch (mocError) {
-                console.error('Error loading moc file:', mocError);
-                document.getElementById('status').innerHTML = 'Error loading model data: ' + mocError.message;
-            }
-
-        } catch (error) {
-            document.getElementById('status').innerHTML = 'Error loading model: ' + error.message;
-            console.error('Error loading model:', error);
-        }
-    }
-
-    startRenderLoop() {
-        const renderLoop = () => {
-            if (this.model) {
-                // Update model
-                this.model.update();
-
-                // Draw model
-                this.drawModel();
-            }
-
-            requestAnimationFrame(renderLoop);
-        };
-
-        renderLoop();
-    }
-
-    drawModel() {
-        // Clear canvas
-        this.ctx.clearColor(0.8, 0.8, 0.9, 1.0);
-        this.ctx.clear(this.ctx.COLOR_BUFFER_BIT | this.ctx.DEPTH_BUFFER_BIT);
-
-        // Draw a representation of the model
-        // This is a simplified visualization - a real implementation would render the actual model
-        this.ctx.fillStyle = '#3498db';
-        this.ctx.beginPath();
-        this.ctx.arc(
-            this.canvas.width / 2,
-            this.canvas.height / 2,
-            Math.min(this.canvas.width, this.canvas.height) * 0.2,
-            0,
-            Math.PI * 2
-        );
-        this.ctx.fill();
-
-        // Draw face features
-        this.ctx.fillStyle = 'white';
-        // Eyes
-        this.ctx.beginPath();
-        this.ctx.arc(
-            this.canvas.width / 2 - 30,
-            this.canvas.height / 2 - 20,
-            10, 0, Math.PI * 2
-        );
-        this.ctx.arc(
-            this.canvas.width / 2 + 30,
-            this.canvas.height / 2 - 20,
-            10, 0, Math.PI * 2
-        );
-        this.ctx.fill();
-
-        // Mouth
-        this.ctx.beginPath();
-        this.ctx.arc(
-            this.canvas.width / 2,
-            this.canvas.height / 2 + 20,
-            15, 0, Math.PI
-        );
-        this.ctx.stroke();
-    }
-
-    toggleDragging() {
-        this.isDragging = !this.isDragging;
-        document.getElementById('drag-status').textContent = this.isDragging ? 'ON' : 'OFF';
-    }
-
-    resetView() {
-        this.dragScale = 1.0;
-        if (this.model && typeof this.model.setParameterValueById === 'function') {
-            // Reset model parameters
-            this.model.setParameterValueById('ParamAngleX', 0);
-            this.model.setParameterValueById('ParamAngleY', 0);
-            this.model.setParameterValueById('ParamEyeBallX', 0);
-            this.model.setParameterValueById('ParamEyeBallY', 0);
-        }
-    }
-
-    playMotion(motionFile) {
-        document.getElementById('status').innerHTML = 'Playing motion: ' + motionFile;
-        // In a real implementation, this would play the specified motion
-        console.log('Playing motion:', motionFile);
     }
 }
 
-let live2dRenderer;
-window.addEventListener('load', () => {
-    live2dRenderer = new Live2DRenderer();
-});
+// Position model in center
+function positionModel() {
+    if (!live2dModel || !app) return;
 
-// Global functions for buttons
-function loadModel(modelFile) {
-    if (live2dRenderer) {
-        live2dRenderer.loadModel(modelFile);
+    live2dModel.position.set(app.screen.width / 2, app.screen.height * 0.75);
+    const scale = Math.min(
+        app.screen.width / live2dModel.width,
+        app.screen.height / live2dModel.height
+    ) * 0.7;
+    live2dModel.scale.set(scale);
+}
+
+// Load model function - modelPath from index.html - \models\huohuo\huohuo.model3.json
+async function loadModel(modelPath) {
+    updateStatus(`Loading: ${modelPath}...`);
+
+    try {
+        initApp();
+
+        // Clear previous model
+        if (live2dModel) {
+            app.stage.removeChild(live2dModel);
+            live2dModel.destroy();
+            live2dModel = null;
+        }
+
+        live2dModel = await PIXI.live2d.Live2DModel.from(modelPath);
+
+        app.stage.addChild(live2dModel);
+        positionModel();
+        setupInteraction();
+
+        // Enable motion buttons
+        document.querySelectorAll('#motion-buttons button').forEach(btn => {
+            btn.disabled = false;
+        });
+
+        updateStatus(`✅ Model loaded!`);
+
+    } catch (error) {
+        console.error('Model load error:', error);
+        updateStatus(`❌ Failed: ${error.message}`);
+        alert(`Error: ${error.message}\n\nCheck browser console (F12)`);
+    }
+}
+
+// Setup interaction
+function setupInteraction() {
+    if (!live2dModel) return;
+
+    live2dModel.interactive = true;
+
+    live2dModel.on('pointerdown', (e) => {
+        if (dragEnabled) {
+            isDragging = true;
+            document.body.style.cursor = 'grabbing';
+        }
+    });
+
+    live2dModel.on('pointermove', (e) => {
+        if (isDragging && dragEnabled && live2dModel.internalModel?._model?._dragManager) {
+            const { x, y } = e.data.global;
+            const dx = (x - app.screen.width / 2) * 0.01;
+            const dy = (y - app.screen.height / 2) * 0.01;
+            live2dModel.internalModel._model._dragManager.adjustDrag(dx, dy);
+        }
+    });
+
+    live2dModel.on('pointerup', () => {
+        isDragging = false;
+        document.body.style.cursor = '';
+    });
+
+    live2dModel.on('pointerupoutside', () => {
+        isDragging = false;
+        document.body.style.cursor = '';
+    });
+
+    // Tap interaction
+    live2dModel.on('hit', (areas) => {
+        if (!dragEnabled && !isDragging) {
+            const bodyHits = ['Body', 'body', 'Head', 'head'];
+            if (areas.some(a => bodyHits.includes(a))) {
+                playMotion('tap_body');
+            }
+        }
+    });
+}
+
+function playMotion(group) {
+    if (!live2dModel) {
+        updateStatus('⚠️ No model loaded');
+        return;
+    }
+
+    try {
+        const motions = live2dModel.motions;
+        if (motions?.[group]?.[0] !== undefined) {
+            live2dModel.motion(group, 0);
+            updateStatus(`▶️ ${group}`);
+        } else {
+            // Try common aliases
+            const aliases = [group, group.toLowerCase(), 'TapBody', 'tapBody', 'FlickHead', 'flickHead'];
+            for (const alias of aliases) {
+                if (motions?.[alias]?.[0] !== undefined) {
+                    live2dModel.motion(alias, 0);
+                    updateStatus(`▶️ ${alias}`);
+                    return;
+                }
+            }
+            updateStatus(`⚠️ No ${group} motion`);
+        }
+    } catch (e) {
+        console.error('Motion error:', e);
+        updateStatus(`❌ ${e.message}`);
     }
 }
 
 function resetView() {
-    if (live2dRenderer) {
-        live2dRenderer.resetView();
+    if (live2dModel?.internalModel?._model?._dragManager) {
+        live2dModel.internalModel._model._dragManager.adjustDrag(0, 0);
+        updateStatus('🔄 Reset');
     }
 }
 
 function toggleDragging() {
-    if (live2dRenderer) {
-        live2dRenderer.toggleDragging();
-    }
+    dragEnabled = !dragEnabled;
+    document.getElementById('drag-status').textContent = dragEnabled ? 'ON' : 'OFF';
+    updateStatus(`Drag: ${dragEnabled ? 'ON' : 'OFF'}`);
 }
 
-function playMotion(motionFile) {
-    if (live2dRenderer) {
-        live2dRenderer.playMotion(motionFile);
-    }
+function updateStatus(msg) {
+    document.getElementById('status').textContent = msg;
 }
+
+console.log('🔍 PIXI version check:');
+console.log('PIXI global:', typeof PIXI);
+console.log('PIXI.Application:', typeof PIXI.Application);
+console.log('PIXI version:', PIXI.VERSION);
+console.log('Live2D available:', !!PIXI.live2d);
+
+updateStatus('✅ Ready! Click "Load Haru" to start');

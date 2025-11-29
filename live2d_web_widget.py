@@ -3,11 +3,9 @@
 Qt6 WebWidget for Live2D Cubism 4 Models
 This application renders Live2D models using QtWebEngine and the Cubism Web SDK
 """
-
 import sys
 import os
 import json
-from run_web import serverInit
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QFileDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -50,7 +48,7 @@ class Live2DCubismWidget(QMainWindow):
         self.create_web_content()
         
         # Load the HTML file
-        html_path = os.path.join(os.getcwd(), "index.html")
+        html_path = os.path.join("/", "index.html")
         self.web_view.load(QUrl.fromLocalFile(html_path))
         # Beyond this let's use already server! but no... its not allowing loading resources on this local http too. hm, what we need then? if i tried http.server,eel...
         # self.web_view.load(QUrl("http://localhost:5000/"))
@@ -90,40 +88,32 @@ class Live2DCubismWidget(QMainWindow):
             GENERATE_MOTION_BUTTONS=self.generate_motion_buttons(model_files['motions']),
         ))
         index_js_data = self.readFile("index-script.js")
-        self.writeFile("index.script.js", index_js_data.replace("{LOAD_MODEL}", model_files['model_file']).replace("\\", "/"))
+        self.writeFile("index.script.js", index_js_data.replace("{LOAD_MODEL}", model_files['model_file']))
 
     def copy_cubism_sdk(self):
         """Copy the Cubism SDK to the working directory for web access"""
         # Create dist directory for framework build
         dist_dir = os.path.join(os.getcwd(), "cubism.web.sdk", "dist")
         os.makedirs(dist_dir, exist_ok=True)
-        
-        # Create a simple framework bundle file
-        framework_content = """
-// Live2D Cubism Framework for Web
-// This is a simplified version for Qt WebWidget integration
-Live2DCubismFramework
-console.log("Live2D Cubism Framework loaded");
-"""
-        
-        # with open(os.path.join(dist_dir, "live2d-cubism-framework.js"), "w") as f:
-        #     f.write(framework_content)
     
     def get_model_files(self):
         """Get model file paths"""
         model_dir = Path(self.model_path)
+        # print("\\"+str(model_dir.relative_to(model_dir.parent.parent)))
         
         # Find model3.json file
         model_file = None
         for file in model_dir.glob("*.model3.json"):
-            model_file = str(file.absolute())
+            model_file = f"\\{(file.relative_to(model_dir.parent.parent))}"
+            print(model_file)
             break
         
         if not model_file:
             # Fallback to model.json if model3.json not found
             fallback = model_dir / "model.json"
             if fallback.exists():
-                model_file = str(fallback.absolute())
+                model_file = f"/{str(fallback.relative_to(model_dir.parent.parent))}"
+                print(model_file)
         
         # Find motion files
         motions = []

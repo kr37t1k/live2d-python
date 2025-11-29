@@ -292,9 +292,9 @@ Live2DCubismFramework.CubismUserModel = function() {
             },
             
             loadModel: function(mocArrayBuffer) {
-                this._moc = Live2DCubismCore.CubismMoc.create(mocArrayBuffer);
+                this._moc = Live2DCubismCore.Moc(mocArrayBuffer);
                 if (this._moc) {
-                    this._model = Live2DCubismCore.CubismModel.create(this._moc);
+                    this._model = Live2DCubismCore.Model(this._moc);
                     this.initialize();
                     return true;
                 }

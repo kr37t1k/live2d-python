@@ -1,12 +1,16 @@
 ```
 # Backup files
-*.backup
+*.py.bak
 
-# Python
-__pycache__/
+# Compiled Python files
 *.pyc
-*.pyo
-*.pyd
+__pycache__/
+
+# Dependencies
+venv/
+.venv/
+.mypy_cache/
+.pytest_cache/
 
 # Logs
 *.log
@@ -14,56 +18,9 @@ __pycache__/
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Dependencies
-node_modules/
-venv/
-.venv/
-pipenv/
-poetry.lock
-
-models/meya/
-# Build artifacts
-build/
-*.out
-*.exe
-*.dll
-*.so
-*.a
-
-# Coverage
-.coverage
-coverage/
-htmlcov/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
 ```

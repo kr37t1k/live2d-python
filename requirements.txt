@@ -1,5 +1,3 @@
 # Dependencies for Live2D Model Renderer
-pygame>=2.5.2
-numpy>=1.24.3
-Pillow>=10.0.1
-PyOpenGL>=3.1.7
+PyQt6>=6.4.0
+PyQt6-WebEngine>=6.4.0

@@ -7,6 +7,6 @@ using PyQtWebEngine and web technologies (PIXI.js, pixi-live2d).
 
 from .live2d_web_widget import Live2DWidget
 
-__version__ = "1.0.0"
-__author__ = "Your Name"
+__version__ = "0.5"
+__author__ = "kr37t1k"
 __all__ = ["Live2DWidget"]

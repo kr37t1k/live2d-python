@@ -7,20 +7,26 @@ web technologies through QtWebEngine.
 
 import sys
 import os
-import json
 from pathlib import Path
+# os.environ['QTWEBENGINE_REMOTE_DEBUGGING'] = '9222'
+from logging import basicConfig, DEBUG
+basicConfig(level=DEBUG)
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QWidget, 
-    QPushButton, QHBoxLayout, QFileDialog, QSplitter,
+    QPushButton, QHBoxLayout, QFileDialog,
     QLabel, QFrame
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import QUrl, QDir, pyqtSignal, QObject
+from PyQt6.QtCore import QUrl, pyqtSignal, QSize, QObject, pyqtSlot
 from PyQt6.QtWebEngineCore import QWebEngineSettings
 from PyQt6.QtGui import QFont
 import tempfile
 import shutil
 
+class ConsoleHandler(QObject):
+    @pyqtSlot(str, int, str, str)
+    def handleMessage(self, level, line, message, source):
+        print(f"Console: {level} at line {line}: {message} (source: {source})")
 
 class Live2DWidget(QWidget):
     """
@@ -84,6 +90,7 @@ class Live2DWidget(QWidget):
         # Create web view
         self.web_view = QWebEngineView()
         layout.addWidget(self.web_view)
+        self.handler = ConsoleHandler(self)
         
         # Status label
         if self.enable_controls:
@@ -100,6 +107,7 @@ class Live2DWidget(QWidget):
         settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute)
     
     def _create_temp_assets(self):
         """Create temporary directory with web assets."""
@@ -114,7 +122,8 @@ class Live2DWidget(QWidget):
         # Load the HTML
         html_path = os.path.join(self._temp_dir, "index.html")
         self.web_view.load(QUrl.fromLocalFile(html_path))
-    
+        # self.web_view.page().javaScriptConsoleMessage.connect(self.handler.handleMessage) no working
+
     def _copy_assets_to_temp(self):
         """Copy required assets to temporary directory."""
         # Copy pixi files
@@ -122,22 +131,22 @@ class Live2DWidget(QWidget):
         os.makedirs(pixi_dir, exist_ok=True)
         
         # Copy pixi files from project directory
-        if os.path.exists("/workspace/pixi/pixi.js"):
-            shutil.copy("/workspace/pixi/pixi.js", os.path.join(pixi_dir, "pixi.js"))
-        if os.path.exists("/workspace/pixi/pixi.min.js"):
-            shutil.copy("/workspace/pixi/pixi.min.js", os.path.join(pixi_dir, "pixi.min.js"))
-        if os.path.exists("/workspace/pixi/pixi-live2d.js"):
-            shutil.copy("/workspace/pixi/pixi-live2d.js", os.path.join(pixi_dir, "pixi-live2d.js"))
-        if os.path.exists("/workspace/pixi/pixi-live2d.min.js"):
-            shutil.copy("/workspace/pixi/pixi-live2d.min.js", os.path.join(pixi_dir, "pixi-live2d.min.js"))
+        if os.path.exists("../pixi/pixi.js"):
+            shutil.copy("../pixi/pixi.js", os.path.join(pixi_dir, "pixi.js"))
+        if os.path.exists("../pixi/pixi.min.js"):
+            shutil.copy("../pixi/pixi.min.js", os.path.join(pixi_dir, "pixi.min.js")) # 7.4.2
+        if os.path.exists("../pixi/pixi-live2d.js"):
+            shutil.copy("../pixi/pixi-live2d.js", os.path.join(pixi_dir, "pixi-live2d.js"))
+        if os.path.exists("../pixi/pixi-live2d.min.js"):
+            shutil.copy("../pixi/pixi-live2d.min.js", os.path.join(pixi_dir, "pixi-live2d.min.js")) # 1.2.1
         
         # Copy cubism core
         core_dir = os.path.join(self._temp_dir, "cubism.web.sdk", "Core")
         os.makedirs(core_dir, exist_ok=True)
         
-        if os.path.exists("/workspace/cubism.web.sdk/Core/live2dcubismcore.min.js"):
+        if os.path.exists("../cubism.web.sdk/Core/live2dcubismcore.min.js"):
             shutil.copy(
-                "/workspace/cubism.web.sdk/Core/live2dcubismcore.min.js", 
+                "../cubism.web.sdk/Core/live2dcubismcore.min.js",
                 os.path.join(core_dir, "live2dcubismcore.min.js")
             )
     
@@ -466,7 +475,7 @@ updateStatus('✅ Ready! Waiting for model...');
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Live2D + PIXI v6</title>
+    <title>Live2D + PIXI</title>
     <style>{css_content}</style>
 </head>
 <body>
@@ -513,14 +522,14 @@ updateStatus('✅ Ready! Waiting for model...');
         # Find model3.json file
         model_file = None
         for file in model_dir.glob("*.model3.json"):
-            model_file = f"./{file.name}"
+            model_file = f"/{file.name}"
             break
         
         if not model_file:
             # Fallback to model.json if model3.json not found
             fallback = model_dir / "model.json"
             if fallback.exists():
-                model_file = f"./{fallback.name}"
+                model_file = f"/{fallback.name}"
         
         # Find motion files
         motions = []
@@ -551,6 +560,7 @@ updateStatus('✅ Ready! Waiting for model...');
         # Copy model files to temp directory
         dest_model_dir = os.path.join(self._temp_dir, "model")
         os.makedirs(dest_model_dir, exist_ok=True)
+        print(dest_model_dir)
         
         # Copy all model files
         for item in os.listdir(model_path):
@@ -675,7 +685,7 @@ def main():
     app = QApplication(sys.argv)
     
     # Create and show the main window
-    window = Live2DWindow(model_path="/workspace/models/huohuo")
+    window = Live2DWindow(model_path="../models/huohuo")
     window.show()
     
     # Run the application

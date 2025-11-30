@@ -9,19 +9,18 @@ import sys
 import os
 from pathlib import Path
 # os.environ['QTWEBENGINE_REMOTE_DEBUGGING'] = '9222'
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-direct-composition"
 from logging import basicConfig, DEBUG
 basicConfig(level=DEBUG)
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QWidget, 
-    QPushButton, QHBoxLayout, QFileDialog,
-    QLabel, QFrame
-)
+from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QFileDialog,QLabel, QFrame
+import PyQt6.QtWebEngineWidgets
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import QUrl, pyqtSignal, QSize, QObject, pyqtSlot
+from PyQt6.QtCore import QUrl, pyqtSignal, QSize, QObject, pyqtSlot, Qt
 from PyQt6.QtWebEngineCore import QWebEngineSettings
 from PyQt6.QtGui import QFont
 import tempfile
 import shutil
+
 
 class ConsoleHandler(QObject):
     @pyqtSlot(str, int, str, str)
@@ -97,7 +96,9 @@ class Live2DWidget(QWidget):
             self.status_label = QLabel("Ready to load model")
             self.status_label.setFont(QFont("Arial", 10))
             layout.addWidget(self.status_label)
-    
+
+        # self.web_view.page().javaScriptConsoleMessage.connect(self.handler.handleMessage) no working
+
     def _setup_web_engine(self):
         """Setup web engine settings."""
         settings = self.web_view.settings()
@@ -107,8 +108,7 @@ class Live2DWidget(QWidget):
         settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute)
-    
+
     def _create_temp_assets(self):
         """Create temporary directory with web assets."""
         self._temp_dir = tempfile.mkdtemp(prefix="live2d_widget_")
@@ -118,37 +118,23 @@ class Live2DWidget(QWidget):
         
         # Create the HTML file
         self._create_html_file()
-        
         # Load the HTML
         html_path = os.path.join(self._temp_dir, "index.html")
         self.web_view.load(QUrl.fromLocalFile(html_path))
-        # self.web_view.page().javaScriptConsoleMessage.connect(self.handler.handleMessage) no working
 
     def _copy_assets_to_temp(self):
         """Copy required assets to temporary directory."""
         # Copy pixi files
-        pixi_dir = os.path.join(self._temp_dir, "pixi")
-        os.makedirs(pixi_dir, exist_ok=True)
+        scripts_dir = os.path.join(self._temp_dir, "scripts")
+        os.makedirs(scripts_dir, exist_ok=True)
         
-        # Copy pixi files from project directory
-        if os.path.exists("../pixi/pixi.js"):
-            shutil.copy("../pixi/pixi.js", os.path.join(pixi_dir, "pixi.js"))
-        if os.path.exists("../pixi/pixi.min.js"):
-            shutil.copy("../pixi/pixi.min.js", os.path.join(pixi_dir, "pixi.min.js")) # 7.4.2
-        if os.path.exists("../pixi/pixi-live2d.js"):
-            shutil.copy("../pixi/pixi-live2d.js", os.path.join(pixi_dir, "pixi-live2d.js"))
-        if os.path.exists("../pixi/pixi-live2d.min.js"):
-            shutil.copy("../pixi/pixi-live2d.min.js", os.path.join(pixi_dir, "pixi-live2d.min.js")) # 1.2.1
-        
-        # Copy cubism core
-        core_dir = os.path.join(self._temp_dir, "cubism.web.sdk", "Core")
-        os.makedirs(core_dir, exist_ok=True)
-        
-        if os.path.exists("../cubism.web.sdk/Core/live2dcubismcore.min.js"):
-            shutil.copy(
-                "../cubism.web.sdk/Core/live2dcubismcore.min.js",
-                os.path.join(core_dir, "live2dcubismcore.min.js")
-            )
+        # Copy scripts from project directory
+        shutil.copy("./jquery.min.js", os.path.join(scripts_dir, "jquery.min.js"))
+        shutil.copy("./jquery-ui.js", os.path.join(scripts_dir, "jquery-ui.js"))
+        shutil.copy("./pixi.min.js", os.path.join(scripts_dir, "pixi.min.js")) # 7.4.2
+        shutil.copy("./pixi-live2d.min.js", os.path.join(scripts_dir, "pixi-live2d.min.js")) # 1.2.1
+        shutil.copy("./live2d.js", os.path.join(scripts_dir, "live2d.js"))
+
     
     def _create_html_file(self):
         """Create the HTML file for Live2D rendering."""
@@ -264,7 +250,7 @@ function initApp() {
 
     try {
         app = new Application({
-            view: document.getElementById('canvas'),
+            view: document.getElementById('live2d'),
             backgroundColor: 0x0f0c29,
             transparent: true,
             resizeTo: window,
@@ -477,10 +463,13 @@ updateStatus('✅ Ready! Waiting for model...');
     <meta charset="utf-8">
     <title>Live2D + PIXI</title>
     <style>{css_content}</style>
+    <script src="scripts/live2d.js"></script>
+    <script src="scripts/jquery.min.js"></script>
+    <script src="scripts/jquery-ui.js"></script>
 </head>
 <body>
     <div id="canvas-container">
-        <canvas id="canvas"></canvas>
+        <canvas id="live2d"></canvas>
     </div>
 
     <div id="controls">
@@ -502,9 +491,8 @@ updateStatus('✅ Ready! Waiting for model...');
     <div id="status">Loading libraries...</div>
 
     <!-- Live2D Libraries -->
-    <script src="./cubism.web.sdk/Core/live2dcubismcore.min.js"></script>
-    <script src="./pixi/pixi.js"></script>
-    <script src="./pixi/pixi-live2d.js"></script>
+    <script src="scripts/pixi.min.js"></script>
+    <script src="scripts/pixi-live2d.min.js"></script>
 
     <script>{js_content}</script>
 </body>
@@ -685,7 +673,7 @@ def main():
     app = QApplication(sys.argv)
     
     # Create and show the main window
-    window = Live2DWindow(model_path="../models/huohuo")
+    window = Live2DWindow()
     window.show()
     
     # Run the application

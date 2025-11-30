@@ -5,13 +5,15 @@ Example usage of the Live2D Widget module.
 This script demonstrates how to use the Live2DWidget in a PyQt application.
 """
 
-import sys
+import sys, eel
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QHBoxLayout
+from PyQt6.QtCore import Qt
 
 
 def main():
     """Example application showing how to use the Live2DWidget."""
     app = QApplication(sys.argv)
+    app.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
     
     # Create main window
     window = QMainWindow()
@@ -29,7 +31,7 @@ def main():
     # Create the Live2D widget with the huohuo model
     live2d_widget = Live2DWidget(
         parent=window,
-        model_path="/workspace/models/huohuo",  # Use the sample model
+        model_path="../models/huohuo",  # Use the sample model
         enable_controls=True  # Show control buttons
     )
     layout.addWidget(live2d_widget)
@@ -40,7 +42,7 @@ def main():
     def load_different_model():
         """Example function to load a different model."""
         # This would typically open a dialog, but for demo purposes we'll use a different path
-        live2d_widget.set_model_path("/workspace/models/default")
+        live2d_widget.set_model_path("../models/default")
     
     def play_idle_motion():
         """Play the idle motion."""
@@ -98,7 +100,12 @@ def main():
     
     # Run the application
     sys.exit(app.exec())
-
+def main_task():
+    from live2d_widget import Live2DWidget
+    from PyQt6.QtWidgets import QMainWindow
+    l2dwidget = Live2DWidget(QMainWindow(),"")
+    eel.init(".")
+    eel.start("index.html", mode="chrome", port=0)
 
 if __name__ == "__main__":
-    main()
+    main_task()

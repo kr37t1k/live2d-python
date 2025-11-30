@@ -1,7 +1,7 @@
 """
-Live2D Widget for PyQtWebEngine - A reusable module for Live2D model rendering
+Live2D Widget for PySide6 - A reusable module for Live2D model rendering
 
-This module provides a PyQt widget that renders Live2D models using
+This module provides a PySide6 widget that renders Live2D models using
 web technologies through QtWebEngine.
 """
 
@@ -12,32 +12,31 @@ from pathlib import Path
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-direct-composition"
 from logging import basicConfig, DEBUG
 basicConfig(level=DEBUG)
-from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QFileDialog,QLabel, QFrame
-import PyQt6.QtWebEngineWidgets
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import QUrl, pyqtSignal, QSize, QObject, pyqtSlot, Qt
-from PyQt6.QtWebEngineCore import QWebEngineSettings
-from PyQt6.QtGui import QFont
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QFileDialog, QLabel, QFrame
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtCore import QUrl, Signal, QSize, QObject, Slot, Qt
+from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtGui import QFont
 import tempfile
 import shutil
 
 
 class ConsoleHandler(QObject):
-    @pyqtSlot(str, int, str, str)
+    @Slot(str, int, str, str)
     def handleMessage(self, level, line, message, source):
         print(f"Console: {level} at line {line}: {message} (source: {source})")
 
 class Live2DWidget(QWidget):
     """
-    A PyQt widget for rendering Live2D models using QtWebEngine.
+    A PySide6 widget for rendering Live2D models using QtWebEngine.
     
-    This widget can be embedded in any PyQt application and provides
+    This widget can be embedded in any PySide6 application and provides
     controls for loading and interacting with Live2D models.
     """
     
     # Signal emitted when model loading status changes
-    model_loaded = pyqtSignal(bool)
-    model_load_error = pyqtSignal(str)
+    model_loaded = Signal(bool)
+    model_load_error = Signal(str)
     
     def __init__(self, parent=None, model_path=None, enable_controls=True):
         """
@@ -128,12 +127,13 @@ class Live2DWidget(QWidget):
         scripts_dir = os.path.join(self._temp_dir, "scripts")
         os.makedirs(scripts_dir, exist_ok=True)
         
-        # Copy scripts from project directory
-        shutil.copy("./jquery.min.js", os.path.join(scripts_dir, "jquery.min.js"))
-        shutil.copy("./jquery-ui.js", os.path.join(scripts_dir, "jquery-ui.js"))
-        shutil.copy("./pixi.min.js", os.path.join(scripts_dir, "pixi.min.js")) # 7.4.2
-        shutil.copy("./pixi-live2d.min.js", os.path.join(scripts_dir, "pixi-live2d.min.js")) # 1.2.1
-        shutil.copy("./live2d.js", os.path.join(scripts_dir, "live2d.js"))
+        # Copy scripts from live2d_widget directory
+        current_dir = os.path.dirname(__file__)
+        shutil.copy(os.path.join(current_dir, "jquery.min.js"), os.path.join(scripts_dir, "jquery.min.js"))
+        shutil.copy(os.path.join(current_dir, "jquery-ui.js"), os.path.join(scripts_dir, "jquery-ui.js"))
+        shutil.copy(os.path.join(current_dir, "pixi.min.js"), os.path.join(scripts_dir, "pixi.min.js")) # 7.4.2
+        shutil.copy(os.path.join(current_dir, "pixi-live2d.min.js"), os.path.join(scripts_dir, "pixi-live2d.min.js")) # 1.2.1
+        shutil.copy(os.path.join(current_dir, "live2d.js"), os.path.join(scripts_dir, "live2d.js"))
 
     
     def _create_html_file(self):
@@ -463,9 +463,6 @@ updateStatus('✅ Ready! Waiting for model...');
     <meta charset="utf-8">
     <title>Live2D + PIXI</title>
     <style>{css_content}</style>
-    <script src="scripts/live2d.js"></script>
-    <script src="scripts/jquery.min.js"></script>
-    <script src="scripts/jquery-ui.js"></script>
 </head>
 <body>
     <div id="canvas-container">
@@ -490,9 +487,12 @@ updateStatus('✅ Ready! Waiting for model...');
 
     <div id="status">Loading libraries...</div>
 
-    <!-- Live2D Libraries -->
+    <!-- Library Scripts -->
+    <script src="scripts/jquery.min.js"></script>
+    <script src="scripts/jquery-ui.js"></script>
     <script src="scripts/pixi.min.js"></script>
     <script src="scripts/pixi-live2d.min.js"></script>
+    <script src="scripts/live2d.js"></script>
 
     <script>{js_content}</script>
 </body>

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Setup script for Live2D Widget - PySide6 Module for Live2D Rendering
+Setup script for Live2D Python Rendering
 """
 
 import os
 from setuptools import setup, find_packages
 
 setup(
-    name="live2d-widget",
-    version="1.0.0",
-    author="Your Name",
-    author_email="your.email@example.com",
-    description="A PySide6 widget for rendering Live2D models",
+    name="live2d-python",
+    version="0.5.5",
+    author="kr37t1k",
+    author_email="egorakentiev28@gmail.com",
+    description="A little live2d-web python implementation",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/live2d-widget",
+    url="https://github.com/kr37t1k/live2d-python",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -29,8 +29,8 @@ setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-        "PySide6>=6.4.0",
+        "flask",
     ],
     include_package_data=True,
-    keywords=["live2d", "pyside", "qt", "widget", "3d", "animation", "model"],
+    keywords=["live2d", "python", "animation", "model"],
 )

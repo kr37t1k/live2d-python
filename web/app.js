@@ -163,15 +163,78 @@ function applyModelState(state) {
         });
     }
 }
+function setParameterValue(model, paramName, value) {
+        const index = getParameterIndex(model.parameters, paramName);
+        if (index !== -1) {
+            model.parameters.values[index] = Math.max(-1, Math.min(1, value));
+//            console.log(`Set ${paramName}[${index}] = ${value}`);
+            return true;
+        }
+        return false;
+    }
+function getParameterIndex(parameters, paramName) {
+    if (!parameters || !parameters.ids) {
+        console.warn('Parameters object or parameter names (ids) not available');
+        const predictedNames = [
+            'ParamAngleX', 'ParamAngleY', 'ParamAngleZ',
+            'ParamEyeLOpen', 'ParamEyeROpen', 'ParamEyeBallX', 'ParamEyeBallY',
+            'ParamBrowLY', 'ParamBrowRY', 'ParamMouthOpenY',
+            'ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ'
+        ];
 
+        for (let i = 0; i < Math.min(predictedNames.length, parameters.count); i++) {
+            if (predictedNames[i] === paramName) {
+//                console.log(`Found predicted parameter "${paramName}" at index ${i}`);
+                return i;
+            }
+        }
+
+        const variations = [
+            String(paramName),
+            String(paramName).toLowerCase(),
+            String(paramName).toUpperCase(),
+            'Param' + String(paramName).replace('Param', ''),
+            String(paramName).replace('Param', 'Param')
+        ];
+
+        for (let i = 0; i < parameters.count; i++) {
+            const currentName = `Param_${i}`;
+            for (const variation of variations) {
+                if (currentName.includes(variation) || variation.includes(currentName)) {
+//                    console.log(`Matched parameter "${paramName}" ~ "${currentName}" at index ${i}`);
+                    return i;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    for (let i = 0; i < parameters.ids.length; i++) {
+        if (parameters.ids[i] === paramName) {
+            return i;
+        }
+    }
+
+    const searchName = String(paramName).toLowerCase();
+    for (let i = 0; i < parameters.ids.length; i++) {
+        const currentName = parameters.ids[i].toLowerCase();
+        if (currentName.includes(searchName) || searchName.includes(currentName)) {
+//            console.log(`Partial match: "${paramName}" -> "${parameters.ids[i]}" at index ${i}`);
+            return i;
+        }
+    }
+
+    console.warn(`Parameter "${paramName}" not found in:`, parameters.ids);
+    return -1;
+}
 // Update parameter value
 function updateParameter(paramId, value) {
     if (!live2dModel) return;
     
-    const paramIndex = live2dModel.getParameterIndex(paramId);
+    const paramIndex = Number(getParameterIndex(live2dModel.parameters, paramId))+0;
     if (paramIndex >= 0) {
-        live2dModel.setParameterValue(paramIndex, value);
-        console.log(`Updated parameter ${paramId} = ${value}`);
+        setParameterValue(live2dModel, paramIndex, value);
     } else {
         console.warn(`Parameter ${paramId} not found in model`);
     }

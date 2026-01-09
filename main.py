@@ -12,8 +12,8 @@ import os
 module_dir = os.path.dirname(os.path.abspath(__file__))
 # Initialize Flask app with template folder
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web'))
-# Initialize SocketIO with CORS allowed and gevent async mode
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+# Initialize SocketIO with CORS allowed
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 @dataclass
 class Live2DState:

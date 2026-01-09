@@ -142,7 +142,7 @@ h1 {
     font-weight: bold;
 }
 
-/* Адаптивность */
+/* Responsiveness */
 @media (max-width: 1024px) {
     .container {
         flex-direction: column;

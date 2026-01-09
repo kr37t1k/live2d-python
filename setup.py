@@ -30,6 +30,7 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "flask",
+        "numpy",
     ],
     include_package_data=True,
     keywords=["live2d", "python", "animation", "model"],

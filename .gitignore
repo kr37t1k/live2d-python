@@ -1,58 +1,4 @@
 ```
-# Dependencies
-node_modules/
-
-# Build artifacts
-build/
-
-# Environment files
-.env
-.env.local
-*.env.*
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-venv/
-.venv/
-.env/
-
-# Logs
-*.log
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Editor
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# MyPy
-.mypy_cache/
-
-# Pytest
-.pytest_cache/
-
-# Distribution / packaging
-dist/
-build/
-*.egg
-*.egg-info/
-pip-log.txt
-pip-delete-this-directory.txt
-
 # Compressed files
 *.zip
 *.gz
@@ -76,4 +22,55 @@ pip-delete-this-directory.txt
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Cache directories
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+coverage/
+htmlcov/
+*.coverage
+
+# Build artifacts
+*.pyc
+*.class
+*.o
+*.exe
+*.dll
+*.so
+*.a
+*.obj
+*.out
+dist/
+build/
+target/
+*.out
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+.julia/
+zig*/
+.jdk/
+.gradle/
+
+# Editors
+.vscode/
+.idea/
 ```

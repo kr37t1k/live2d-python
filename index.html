@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Cubism WebGL Renderer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB; /* Sky blue background */
+        }
+        
+        #live2d-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: inline-block;
+            width: 150px;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+        }
+        
+        .status {
+            color: yellow;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="live2d-canvas"></canvas>
+    
+    <div id="controls">
+        <h3>Live2D Controls</h3>
+        <div id="parameter-controls"></div>
+        <div class="status" id="status">Loading...</div>
+        <button onclick="loadModel()">Load Default Model</button>
+        <button onclick="resetModel()">Reset Model</button>
+    </div>
+
+    <!-- Import the Live2D Core library -->
+    <script src="./live2dcubismcore.min.js"></script>
+    
+    <!-- Import our Live2D wrapper -->
+    <script type="module" src="./app.js"></script>
+
+    <script>
+        // Global variable to hold the Live2D application
+        let live2dApp = null;
+        
+        // Initialize the application when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Create the Live2D application instance
+                live2dApp = new window.Live2DDesktopMate('live2d-canvas', {
+                    autoStart: true
+                });
+                
+                // Update status
+                document.getElementById('status').textContent = 'Initialized - Waiting for model...';
+                
+                // Load a default model if available
+                setTimeout(() => {
+                    loadModel();
+                }, 1000);
+            } catch (error) {
+                console.error('Error initializing Live2D application:', error);
+                document.getElementById('status').textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        // Function to load a model
+        async function loadModel() {
+            if (!live2dApp) {
+                console.error('Live2D app not initialized');
+                return;
+            }
+            
+            try {
+                document.getElementById('status').textContent = 'Loading model...';
+                
+                // Try to load a default model - adjust path as needed
+                const modelPath = 'model/model.model3.json';
+                
+                // Attempt to load the model
+                const success = await live2dApp.loadModel(modelPath);
+                
+                if (success) {
+                    document.getElementById('status').textContent = 'Model loaded successfully!';
+                    
+                    // Generate parameter controls
+                    generateParameterControls();
+                } else {
+                    document.getElementById('status').textContent = 'Failed to load model';
+                }
+            } catch (error) {
+                console.error('Error loading model:', error);
+                document.getElementById('status').textContent = `Load error: ${error.message}`;
+            }
+        }
+        
+        // Function to reset model to default parameters
+        function resetModel() {
+            if (live2dApp && live2dApp.model) {
+                live2dApp.model.resetToDefaults();
+                document.getElementById('status').textContent = 'Model reset to defaults';
+            }
+        }
+        
+        // Function to generate parameter controls
+        function generateParameterControls() {
+            if (!live2dApp || !live2dApp.model || !live2dApp.model.parameters) {
+                return;
+            }
+            
+            const container = document.getElementById('parameter-controls');
+            container.innerHTML = ''; // Clear existing controls
+            
+            // Create controls for each parameter
+            let count = 0;
+            for (const param of live2dApp.model.parameters) {
+                if (count >= 10) break; // Limit to first 10 parameters to avoid clutter
+                
+                const group = document.createElement('div');
+                group.className = 'control-group';
+                
+                const label = document.createElement('label');
+                label.textContent = param.name || `Param ${param.index}:`;
+                label.title = `Current: ${param.value.toFixed(3)}`;
+                
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = param.minimum;
+                slider.max = param.maximum;
+                slider.step = 0.01;
+                slider.value = param.value;
+                slider.oninput = function() {
+                    if (live2dApp && live2dApp.model) {
+                        live2dApp.setParameter(param.name, parseFloat(this.value));
+                        label.title = `Current: ${this.value}`;
+                    }
+                };
+                
+                group.appendChild(label);
+                group.appendChild(slider);
+                container.appendChild(group);
+                
+                count++;
+            }
+        }
+        
+        // Make classes available globally for debugging
+        window.Live2DClasses = {
+            Live2DBase,
+            Live2DDrawables, 
+            Live2DParameters,
+            Live2DParts,
+            Live2DCanvasInfo,
+            Live2DModel,
+            Live2DRenderer,
+            Live2DDesktopMate
+        };
+    </script>
+</body>
+</html>

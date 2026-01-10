@@ -186,11 +186,11 @@ async function loadModel() {
         globalThis.live2dRenderer = new ProductionLive2DRenderer(live2dCanvas, {});
 
         // Load the model
-        const success = await live2dRenderer.loadModel(MODEL_PATH);
+        const success = await this.live2dRenderer.loadModel(MODEL_PATH);
         
         if (success) {
             // Start the render loop
-            live2dRenderer.renderLoop();
+            this.live2dRenderer.renderLoop();
         } else {
             console.error('Failed to load model');
         }

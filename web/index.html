@@ -38,10 +38,11 @@
                     <span id="mouthOpenValue">0.00</span>
                 </div>
             </div>
-
+<!--Improve-->
             <div class="control-group">
                 <h3>Expressions</h3>
                 <div class="expression-buttons">
+<!--                    Need to parse expressions from JSON file and generate buttons dynamically if them are-->
                     <button class="expr-btn" data-expr="smile">😊 Smile</button>
                     <button class="expr-btn" data-expr="angry">😠 Angry</button>
                     <button class="expr-btn" data-expr="sad">😢 Sad</button>
@@ -52,9 +53,10 @@
             <div class="control-group">
                 <h3>Motions</h3>
                 <div class="motion-buttons">
-                    <button class="motion-btn" data-group="idle">💤 AFK</button>
-                    <button class="motion-btn" data-group="tap_body">👈 Tap body</button>
-                    <button class="motion-btn" data-group="shake">👋 Shake</button>
+<!--                    Need to parse motions from JSON file and generate buttons dynamically if them are-->
+                    <button class="motion-btn" data-group="Idle">💤 AFK</button>
+                    <button class="motion-btn" data-group="TapBody">👈 Tap body</button>
+                    <button class="motion-btn" data-group="Shake">👋 Shake</button>
                 </div>
             </div>
 
@@ -72,7 +74,7 @@
     <script src="{{ url_for('web', filename='live2dcubismcore.min.js') }}"></script>
     <script src="{{ url_for('web', filename='cubismframework.js') }}"></script>
     <script src="{{ url_for('web', filename='cubismrenderer.js') }}"></script>
-    <script src="{{ url_for('web', filename='Live2DRenderer.js') }}"></script>
+    <script src="{{ url_for('web', filename='optimized-live2d-renderer.js') }}"></script>
     <script src="{{ url_for('web', filename='app.js') }}"></script>
 </body>
 </html>

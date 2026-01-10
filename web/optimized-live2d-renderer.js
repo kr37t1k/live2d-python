@@ -3,6 +3,7 @@
  * Optimized implementation with shared ArrayBuffer and proper material rendering
  */
 
+
 class ProductionLive2DRenderer {
     constructor(canvas, options = {}) {
         this.canvas = canvas;
@@ -641,7 +642,7 @@ class ProductionLive2DRenderer {
         if (!this.expressionManager) return;
 
         // Find expression file path based on model configuration
-        const expressionPath = `web/models/huohuo/${expressionName}.exp3.json`; // Example path
+        const expressionPath = String(MODEL_PATH).replace(`model3.json`, `${expressionName}.exp3.json`);
         const expressionData = await this.loadExpressionData(expressionPath);
 
         if (expressionData) {
@@ -1199,7 +1200,7 @@ class TransparentLive2DDesktopMate {
                 alwaysOnTop: true,
                 clickThrough: false,
                 enableWindowControls: true,
-                modelPath: 'web/models/Hiyori/Hiyori.model3.json',
+                modelPath: MODEL_PATH,
                 transparent: true,
                 resizable: true
             },

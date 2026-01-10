@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live2D Desktop Mate</title>
-    <link rel="stylesheet" href="{{ url_for('web', filename='styles.css') }}">
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
 </head>
 <body>
@@ -66,14 +66,14 @@
         </div>
 
         <div class="live2d-panel">
-            <canvas id="live2dCanvas"></canvas>
+            <canvas id="live2dCanvas" width="400" height="600"></canvas>
         </div>
     </div>
 
-    <script src="{{ url_for('web', filename='live2dcubismcore.min.js') }}"></script>
-    <script src="{{ url_for('web', filename='cubismframework.js') }}"></script>
-    <script src="{{ url_for('web', filename='cubismrenderer.js') }}"></script>
-    <script src="{{ url_for('web', filename='Live2DWrapper.js') }}"></script>
-    <script src="{{ url_for('web', filename='app.js') }}"></script>
+    <script src="live2dcubismcore.min.js"></script>
+    <script src="cubismframework.js"></script>
+    <script src="cubismrenderer.js"></script>
+    <script src="Live2DWrapper.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

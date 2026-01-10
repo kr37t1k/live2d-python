@@ -500,20 +500,66 @@ class Live2DRenderer {
     /**
      * Render a specific drawable
      */
+    /**
+     * Render a specific drawable
+     */
     renderDrawable(drawableIndex) {
         // Get drawable information
-        const opacity = this.live2dModel.getDrawableOpacity(drawableIndex);
-        const vertices = this.live2dModel.getDrawableVertices(drawableIndex);
-        const textureIndex = this.live2dModel.getDrawableTextureIndices(drawableIndex)[0];
-        const indexCount = this.live2dModel.getDrawableVertexIndexCount(drawableIndex);
-        const indices = this.live2dModel.getDrawableVertexIndices(drawableIndex);
-        const blendMode = this.live2dModel.getDrawableBlendMode(drawableIndex);
+        const drawCount = this.live2dModel.drawCount !== undefined ? this.live2dModel.drawCount : 
+                         this.live2dModel.getDrawableCount ? this.live2dModel.getDrawableCount() : 0;
         
-        // Validate data
-        if (!vertices || !indices || textureIndex >= this.textures.length) {
+        if (drawableIndex >= drawCount) {
             return;
         }
+
+        // Check visibility - get opacity array
+        const opacities = this.live2dModel.opacities !== undefined ? this.live2dModel.opacities :
+                          this.live2dModel.getDrawableOpacities ? this.live2dModel.getDrawableOpacities() : null;
         
+        if (opacities && opacities[drawableIndex] < 0.001) {
+            return; // Skip invisible drawables
+        }
+
+        // Get drawable data - different Live2D Core versions expose data differently
+        let vertices, indices, textureIndex;
+        
+        // Try to get vertices
+        if (this.live2dModel.getDrawableVertices && typeof this.live2dModel.getDrawableVertices === "function") {
+            vertices = this.live2dModel.getDrawableVertices(drawableIndex);
+        } else if (this.live2dModel.drawArrays && this.live2dModel.drawArrays[drawableIndex]) {
+            vertices = this.live2dModel.drawArrays[drawableIndex];
+        }
+        
+        // Try to get indices
+        if (this.live2dModel.getDrawableVertexIndices && typeof this.live2dModel.getDrawableVertexIndices === "function") {
+            indices = this.live2dModel.getDrawableVertexIndices(drawableIndex);
+        } else if (this.live2dModel.indices && this.live2dModel.indices[drawableIndex]) {
+            indices = this.live2dModel.indices[drawableIndex];
+        }
+        
+        // Try to get texture index
+        if (this.live2dModel.getDrawableTextureIndex && typeof this.live2dModel.getDrawableTextureIndex === "function") {
+            textureIndex = this.live2dModel.getDrawableTextureIndex(drawableIndex);
+        } else if (this.live2dModel.getDrawableTextureIndices && typeof this.live2dModel.getDrawableTextureIndices === "function") {
+            const texIndices = this.live2dModel.getDrawableTextureIndices();
+            textureIndex = texIndices ? texIndices[drawableIndex] : 0;
+        } else if (this.live2dModel.textureIndices && this.live2dModel.textureIndices[drawableIndex] !== undefined) {
+            textureIndex = this.live2dModel.textureIndices[drawableIndex];
+        } else {
+            textureIndex = 0; // Default to first texture
+        }
+
+        // Validate data
+        if (!vertices || !indices || textureIndex >= this.textures.length || !this.textures[textureIndex]) {
+            return;
+        }
+
+        // Set blend mode
+        let blendMode = 0; // Default to normal
+        if (this.live2dModel.getDrawableBlendMode && typeof this.live2dModel.getDrawableBlendMode === "function") {
+            blendMode = this.live2dModel.getDrawableBlendMode(drawableIndex);
+        }
+
         // Set blend mode based on drawable settings
         switch (blendMode) {
             case 1: // Additive
@@ -526,40 +572,85 @@ class Live2DRenderer {
                 this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
                 break;
         }
-        
-        // Create vertex buffer
+
+        // Create and bind vertex buffer
         const vertexBuffer = this.gl.createBuffer();
         if (!vertexBuffer) {
-            console.error('Failed to create vertex buffer');
+            console.error("Failed to create vertex buffer");
             return;
         }
-        
+
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
-        
-        // Create index buffer
+
+        // Create and bind index buffer
         const indexBuffer = this.gl.createBuffer();
         if (!indexBuffer) {
-            console.error('Failed to create index buffer');
+            console.error("Failed to create index buffer");
             this.gl.deleteBuffer(vertexBuffer);
             return;
         }
-        
+
         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
         this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), this.gl.STATIC_DRAW);
-        
+
         // Bind texture
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[textureIndex]);
+
+        // Use a simple shader for rendering
+        const shaderProgram = this.getSimpleShaderProgram();
+        this.gl.useProgram(shaderProgram);
+
+        // Set up attributes
+        const positionAttributeLocation = this.gl.getAttribLocation(shaderProgram, "a_position");
+        this.gl.enableVertexAttribArray(positionAttributeLocation);
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
+        this.gl.vertexAttribPointer(positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
+
+        // Set up texture coordinates - we need to create UVs from vertex positions
+        const texCoordAttributeLocation = this.gl.getAttribLocation(shaderProgram, "a_texCoord");
+        const texCoordBuffer = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, texCoordBuffer);
         
-        // Set uniforms (would use proper shader program in full implementation)
-        // For now, we'll use basic rendering
-        
+        // Create simple UV coordinates based on vertex positions
+        // In a real implementation, these would come from the model
+        const uvCoords = [];
+        for (let i = 0; i < vertices.length; i += 2) {
+            // Simple mapping assuming normalized device coordinates
+            uvCoords.push((vertices[i] + 1) * 0.5);      // Map from [-1,1] to [0,1]
+            uvCoords.push(1.0 - (vertices[i + 1] + 1) * 0.5); // Flip Y coordinate
+        }
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(uvCoords), this.gl.STATIC_DRAW);
+        this.gl.enableVertexAttribArray(texCoordAttributeLocation);
+        this.gl.vertexAttribPointer(texCoordAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
+
+        // Set texture uniform
+        const textureUniformLocation = this.gl.getUniformLocation(shaderProgram, "u_texture");
+        this.gl.uniform1i(textureUniformLocation, 0);
+
+        // Set transformation matrix
+        const matrixUniformLocation = this.gl.getUniformLocation(shaderProgram, "u_matrix");
+        const matrix = new Float32Array([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ]);
+        this.gl.uniformMatrix4fv(matrixUniformLocation, false, matrix);
+
         // Draw elements
-        this.gl.drawElements(this.gl.TRIANGLES, indexCount, this.gl.UNSIGNED_SHORT, 0);
-        
-        // Clean up buffers
+        this.gl.drawElements(this.gl.TRIANGLES, indices.length, this.gl.UNSIGNED_SHORT, 0);
+
+        // Disable attributes
+        this.gl.disableVertexAttribArray(positionAttributeLocation);
+        this.gl.disableVertexAttribArray(texCoordAttributeLocation);
+
+        // Clean up temporary buffers
         this.gl.deleteBuffer(vertexBuffer);
+        this.gl.deleteBuffer(indexBuffer);
+        this.gl.deleteBuffer(texCoordBuffer);
+    }
         this.gl.deleteBuffer(indexBuffer);
     }
     
@@ -975,6 +1066,74 @@ class Live2DDesktopMate {
 }
 
 // Export classes for module systems
+
+    /**
+     * Get or create a simple shader program for rendering
+     */
+    getSimpleShaderProgram() {
+        if (this.simpleShaderProgram) {
+            return this.simpleShaderProgram;
+        }
+
+        // Vertex shader source
+        const vertexShaderSource = `
+            attribute vec2 a_position;
+            attribute vec2 a_texCoord;
+            varying vec2 v_texCoord;
+            uniform mat4 u_matrix;
+            
+            void main() {
+                gl_Position = u_matrix * vec4(a_position, 0.0, 1.0);
+                v_texCoord = a_texCoord;
+            }
+        `;
+
+        // Fragment shader source
+        const fragmentShaderSource = `
+            precision mediump float;
+            varying vec2 v_texCoord;
+            uniform sampler2D u_texture;
+            
+            void main() {
+                vec4 texColor = texture2D(u_texture, v_texCoord);
+                gl_FragColor = texColor;
+            }
+        `;
+
+        // Create shader program
+        const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+        const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+        
+        const program = this.gl.createProgram();
+        this.gl.attachShader(program, vertexShader);
+        this.gl.attachShader(program, fragmentShader);
+        this.gl.linkProgram(program);
+
+        if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+            console.error('Could not link shaders:', this.gl.getProgramInfoLog(program));
+            return null;
+        }
+
+        this.simpleShaderProgram = program;
+        return program;
+    }
+
+    /**
+     * Create a shader
+     */
+    createShader(type, source) {
+        const shader = this.gl.createShader(type);
+        this.gl.shaderSource(shader, source);
+        this.gl.compileShader(shader);
+
+        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+            console.error('Shader compilation error:', this.gl.getShaderInfoLog(shader));
+            this.gl.deleteShader(shader);
+            return null;
+        }
+
+        return shader;
+    }
 if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
     module.exports = { Live2DRenderer, Live2DDesktopMate };
 } else if (typeof window !== 'undefined') {

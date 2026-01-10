@@ -58,7 +58,26 @@ class Live2DDrawables extends Live2DBase {
             return new Float32Array(this._core.vertexPositions[index]);
         });
     }
+//     Сброс всех динамических флагов
+    resetDynamicFlags() {
+        if (this._core.resetDynamicFlags) {
+            // Высокоуровневый метод если есть
+            this._core.resetDynamicFlags();
+        } else if (typeof _csm !== 'undefined' && _csm.resetDrawableDynamicFlags && this._modelPtr) {
+            // Низкоуровневый вызов через Emscripten
+            _csm.resetDrawableDynamicFlags(this._modelPtr);
+        } else if (this._core._resetDynamicFlags) {
+            // Альтернативное имя метода
+            this._core._resetDynamicFlags();
+        }
 
+        // Также можно сбросить флаги вручную
+        if (this._core.dynamicFlags) {
+            for (let i = 0; i < this._core.dynamicFlags.length; i++) {
+                this._core.dynamicFlags[i] = false;
+            }
+        }
+    }
     /**
      * Get UV coordinates for a specific drawable
      */
@@ -439,7 +458,7 @@ class Live2DModel {
 
         // Reset dynamic flags for next frame
         if (this._core.drawables && this._core.drawables.dynamicFlags) {
-            Live2DCubismCore.csm.resetDrawableDynamicFlags(this._core._ptr);
+            this.drawables.resetDynamicFlags(this._core._ptr);
         }
 
         this._lastUpdateTime = Date.now();
@@ -884,8 +903,8 @@ class Live2DDesktopMate {
             container: 'body',
             width: 400,
             height: 600,
-            modelPath: 'web/models/Hiyori/Hiyori.model3.json',
-            transparent: true,
+            modelPath: this.MODEL_PATH,
+            transparent: false,
             enableInteractions: true,
             autoUpdate: true,
             ...options
@@ -921,7 +940,8 @@ class Live2DDesktopMate {
      * Create canvas element
      */
     async createCanvas() {
-        this.canvas = document.createElement('canvas');
+//        this.canvas = document.createElement('canvas');
+        this.canvas = document.getElementById('live2dCanvas');
         this.canvas.width = this.options.width;
         this.canvas.height = this.options.height;
         this.canvas.style.position = 'fixed';
@@ -976,6 +996,7 @@ class Live2DDesktopMate {
                 const modelDir = url.substring(0, url.lastIndexOf('/'));
                 const response = await fetch(url);
                 const modelData = await response.json();
+                console.log(modelData);
                 
                 const texturePaths = modelData.FileReferences.Textures.map(tex => `${modelDir}/${tex}`);
                 await this.renderer.loadTextures(texturePaths);
@@ -1201,12 +1222,12 @@ if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
         Live2DDesktopMate
     };
 } else if (typeof window !== 'undefined') {
-    window.Live2DBase = Live2DBase;
-    window.Live2DDrawables = Live2DDrawables;
-    window.Live2DParameters = Live2DParameters;
-    window.Live2DParts = Live2DParts;
-    window.Live2DCanvasInfo = Live2DCanvasInfo;
-    window.Live2DModel = Live2DModel;
-    window.Live2DRenderer = Live2DRenderer;
-    window.Live2DDesktopMate = Live2DDesktopMate;
+    globalThis.Live2DBase = Live2DBase;
+    globalThis.Live2DDrawables = Live2DDrawables;
+    globalThis.Live2DParameters = Live2DParameters;
+    globalThis.Live2DParts = Live2DParts;
+    globalThis.Live2DCanvasInfo = Live2DCanvasInfo;
+    globalThis.Live2DModel = Live2DModel;
+    globalThis.Live2DRenderer = Live2DRenderer;
+    globalThis.Live2DDesktopMate = Live2DDesktopMate;
 }

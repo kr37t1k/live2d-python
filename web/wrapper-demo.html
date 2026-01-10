@@ -206,7 +206,7 @@
     
     <!-- Load our wrapper classes -->
     <script src="Live2DWrapper.js"></script>
-    
+
     <script>
         // Main application
         class Live2DWrapperDemo {
@@ -217,10 +217,10 @@
                 this.gl = null;
                 this.animationId = null;
                 this.isAutoAnimating = true;
-                
+
                 this.init();
             }
-            
+
             async init() {
                 this.canvas = document.getElementById('live2dCanvas');
                 this.gl = this.canvas.getContext('webgl', {
@@ -229,27 +229,28 @@
                     antialias: true,
                     stencil: true
                 });
-                
+
                 if (!this.gl) {
                     this.showError('WebGL not supported');
                     return;
                 }
-                
+
                 try {
                     // Load the model using our wrapper
-                    this.model = await Live2DModel.fromURL('models/Hiyori/Hiyori.model3.json');
-                    
+                    this.model = await Live2DModel.fromURL('models/Hiyori/Hiyori.moc3');
+
                     // Create renderer
                     this.renderer = new Live2DRenderer(this.gl, this.model);
-                    
+
                     // Load textures
                     const modelDir = 'models/Hiyori';
                     const texturePaths = [
-                        `${modelDir}/textures/texture_00.png`
+                        `${modelDir}/Hiyori.2048/texture_00.png`,
+                        `${modelDir}/Hiyori.2048/texture_01.png`
                     ];
                     await this.renderer.loadTextures(texturePaths);
-                    
-                    this.showSuccess('Model loaded successfully!');
+
+                    console.log('Model loaded successfully!');
                     this.updateModelInfo();
                     this.createParameterControls();
                     this.setupEventHandlers();
@@ -259,17 +260,17 @@
                     console.error('Model loading error:', error);
                 }
             }
-            
+
             updateModelInfo() {
                 if (!this.model) return;
-                
+
                 document.getElementById('canvasWidth').textContent = this.model.canvasInfo.width;
                 document.getElementById('canvasHeight').textContent = this.model.canvasInfo.height;
                 document.getElementById('pixelsPerUnit').textContent = this.model.canvasInfo.pixelsPerUnit;
                 document.getElementById('drawableCount').textContent = this.model.drawables.count;
                 document.getElementById('paramCount').textContent = this.model.parameters.count;
                 document.getElementById('partCount').textContent = this.model.parts.count;
-                
+
                 // Count visible drawables
                 let visibleCount = 0;
                 for (let i = 0; i < this.model.drawables.count; i++) {
@@ -277,11 +278,11 @@
                 }
                 document.getElementById('visibleCount').textContent = visibleCount;
             }
-            
+
             createParameterControls() {
                 const container = document.getElementById('parameterControls');
                 container.innerHTML = '';
-                
+
                 // Only show a few key parameters to avoid clutter
                 const keyParams = [
                     'ParamAngleX', 'ParamAngleY', 'ParamAngleZ',
@@ -289,7 +290,7 @@
                     'ParamEyeBallX', 'ParamEyeBallY',
                     'ParamMouthOpenY', 'ParamMouthForm'
                 ];
-                
+
                 for (const paramName of keyParams) {
                     const index = this.model.parameters.getIndexById(paramName);
                     if (index !== undefined) {
@@ -300,19 +301,19 @@
                             min: this.model.parameters.getMinimum(index),
                             max: this.model.parameters.getMaximum(index)
                         };
-                        
+
                         const controlGroup = document.createElement('div');
                         controlGroup.className = 'control-group';
-                        
+
                         const label = document.createElement('label');
                         label.textContent = param.name;
-                        
+
                         const valueSpan = document.createElement('span');
                         valueSpan.textContent = param.value.toFixed(3);
                         valueSpan.style.display = 'inline-block';
                         valueSpan.style.width = '50px';
                         valueSpan.style.textAlign = 'right';
-                        
+
                         const slider = document.createElement('input');
                         slider.type = 'range';
                         slider.min = param.min;
@@ -324,39 +325,39 @@
                             this.model.parameters.set(paramName, value);
                             valueSpan.textContent = value.toFixed(3);
                         });
-                        
+
                         controlGroup.appendChild(label);
                         controlGroup.appendChild(valueSpan);
                         controlGroup.appendChild(slider);
-                        
+
                         container.appendChild(controlGroup);
                     }
                 }
             }
-            
+
             setupEventHandlers() {
                 // Expression buttons
                 document.querySelectorAll('.expression-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const expr = e.target.dataset.expr;
                         this.model.setExpression(expr);
-                        
+
                         // Toggle active state
                         btn.classList.toggle('active');
-                        
+
                         // Auto remove active after 2 seconds
                         setTimeout(() => {
                             btn.classList.remove('active');
                         }, 2000);
                     });
                 });
-                
+
                 // Reset button
                 document.getElementById('resetBtn').addEventListener('click', () => {
                     this.model.reset();
                     this.createParameterControls(); // Update controls to reflect reset values
                 });
-                
+
                 // Auto animation toggle
                 document.getElementById('autoAnimBtn').addEventListener('click', () => {
                     this.isAutoAnimating = !this.isAutoAnimating;
@@ -366,7 +367,7 @@
                         this.stopAnimation();
                     }
                 });
-                
+
                 // Log parameters button
                 document.getElementById('logParamsBtn').addEventListener('click', () => {
                     console.log('Parameters:');
@@ -374,7 +375,7 @@
                         console.log(`${param.name}: ${param.value} (min: ${param.minimum}, max: ${param.maximum})`);
                     }
                 });
-                
+
                 // Log drawables button
                 document.getElementById('logDrawablesBtn').addEventListener('click', () => {
                     console.log('Drawables:');
@@ -382,19 +383,19 @@
                         console.log(`Drawable ${i} (${this.model.drawables.getId(i)}): opacity=${this.model.drawables.getOpacity(i)}, visible=${this.model.drawables.isVisible(i)}`);
                     }
                 });
-                
+
                 // Click on canvas for interaction
                 this.canvas.addEventListener('click', (e) => {
                     const rect = this.canvas.getBoundingClientRect();
                     const x = e.clientX - rect.left;
                     const y = e.clientY - rect.top;
-                    
+
                     // Calculate relative position to center
                     const centerX = this.canvas.width / 2;
                     const centerY = this.canvas.height / 2;
                     const relX = (x - centerX) / centerX;
                     const relY = (y - centerY) / centerY;
-                    
+
                     // Update eye tracking parameters based on click position
                     this.model.parameters.set('ParamEyeBallX', relX * 0.5);
                     this.model.parameters.set('ParamEyeBallY', relY * 0.5);
@@ -402,18 +403,19 @@
                     this.model.parameters.set('ParamAngleY', relY * 30);
                 });
             }
-            
+
             startAnimation() {
                 if (this.animationId) return;
-                
+                console.log("What is this shit?");
+
                 const animate = () => {
                     if (!this.isAutoAnimating) return;
-                    
+
                     // Auto animation - simple breathing and eye blinking
                     const time = this.model.time;
                     const breathValue = 0.5 + 0.1 * Math.sin(time * 2); // Breathing
                     this.model.parameters.set('ParamBreath', breathValue);
-                    
+
                     // Eye blinking (every 3-5 seconds)
                     if (Math.sin(time * 0.3) > 0.9) {
                         this.model.parameters.set('ParamEyeLOpen', 0.2);
@@ -422,42 +424,43 @@
                         this.model.parameters.set('ParamEyeLOpen', 1.0);
                         this.model.parameters.set('ParamEyeROpen', 1.0);
                     }
-                    
+
                     // Update model
                     this.model.update(16.67);
-                    
+
                     // Update renderer buffers
                     this.renderer.updateBuffers();
-                    
+
                     // Render
                     const gl = this.gl;
                     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
                     gl.clearColor(0.0, 0.0, 0.0, 0.0);
                     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-                    
+
                     // Create orthographic projection matrix
                     const projectionMatrix = this.createOrthographicMatrix(
                         0, this.canvas.width, this.canvas.height, 0, -1, 1
                     );
-                    
+
                     this.renderer.render(projectionMatrix);
-                    
+
                     this.animationId = requestAnimationFrame(animate);
+                    // console.log(`is this animating? ${this.animationId}`); // it not seem on screen... need rework!
                 };
-                
+
                 animate();
             }
-            
+
             stopAnimation() {
                 if (this.animationId) {
                     cancelAnimationFrame(this.animationId);
                     this.animationId = null;
                 }
             }
-            
+
             createOrthographicMatrix(left, right, bottom, top, near, far) {
                 const matrix = new Float32Array(16);
-                
+
                 matrix[0] = 2 / (right - left);
                 matrix[5] = 2 / (top - bottom);
                 matrix[10] = -2 / (far - near);
@@ -465,23 +468,23 @@
                 matrix[13] = -(top + bottom) / (top - bottom);
                 matrix[14] = -(far + near) / (far - near);
                 matrix[15] = 1;
-                
+
                 return matrix;
             }
-            
+
             showSuccess(message) {
                 const status = document.getElementById('status');
                 status.textContent = message;
                 status.className = 'status success';
             }
-            
+
             showError(message) {
                 const status = document.getElementById('status');
                 status.textContent = message;
                 status.className = 'status error';
             }
         }
-        
+
         // Initialize when page loads
         window.addEventListener('load', () => {
             new Live2DWrapperDemo();

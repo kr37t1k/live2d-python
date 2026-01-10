@@ -183,14 +183,12 @@ async function loadModel() {
         
         // Get the canvas element
         globalThis.live2dCanvas = document.getElementById('live2dCanvas');
-        globalThis.live2dRenderer = new ProductionLive2DRenderer(live2dCanvas, {});
-
+        globalThis.character2d = new Live2DDesktopMate({});
         // Load the model
-        const success = await this.live2dRenderer.loadModel(MODEL_PATH);
-        
+        const success = await this.character2d.loadModel(MODEL_PATH.replace('.model3.json', '.moc3'));
         if (success) {
-            // Start the render loop
-            this.live2dRenderer.renderLoop();
+//            Start the render loop
+            this.character2d.startAnimation(); //live2dRenderer is autoUpdate - true
         } else {
             console.error('Failed to load model');
         }
@@ -213,7 +211,7 @@ async function initApp() {
     await loadModel();
     
     // Set up periodic client count updates
-    setInterval(requestClientCount, 1000); // Update every second
+    setInterval(requestClientCount, 10000); // Update every second
 }
 
 // Start the application when the page loads

@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live2D Python</title>
+    <title>Live2D Desktop Mate</title>
     <link rel="stylesheet" href="{{ url_for('web', filename='styles.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
 </head>
 <body>
-    <div class="container">
-        <div class="left-panel">
-            <h1>Live2D Python</h1>
+    <div class="desktop-container">
+        <div class="control-panel">
+            <h1>Live2D Desktop Mate</h1>
 
             <div class="control-group">
-                <h3>Settings</h3>
+                <h3>Parameters</h3>
                 <div class="slider-container">
                     <label>Head rotation X:</label>
                     <input type="range" id="angleX" min="-1" max="1" step="0.01" value="0" class="slider">
@@ -38,11 +38,10 @@
                     <span id="mouthOpenValue">0.00</span>
                 </div>
             </div>
-<!--Improve-->
+
             <div class="control-group">
                 <h3>Expressions</h3>
                 <div class="expression-buttons">
-<!--                    Need to parse expressions from JSON file and generate buttons dynamically if them are-->
                     <button class="expr-btn" data-expr="smile">😊 Smile</button>
                     <button class="expr-btn" data-expr="angry">😠 Angry</button>
                     <button class="expr-btn" data-expr="sad">😢 Sad</button>
@@ -53,10 +52,9 @@
             <div class="control-group">
                 <h3>Motions</h3>
                 <div class="motion-buttons">
-<!--                    Need to parse motions from JSON file and generate buttons dynamically if them are-->
-                    <button class="motion-btn" data-group="Idle">💤 AFK</button>
+                    <button class="motion-btn" data-group="idle">💤 Idle</button>
                     <button class="motion-btn" data-group="TapBody">👈 Tap body</button>
-                    <button class="motion-btn" data-group="Shake">👋 Shake</button>
+                    <button class="motion-btn" data-group="Shake">👋 Wave</button>
                 </div>
             </div>
 
@@ -66,7 +64,7 @@
             </div>
         </div>
 
-        <div class="right-panel">
+        <div class="live2d-panel">
             <canvas id="live2dCanvas"></canvas>
         </div>
     </div>

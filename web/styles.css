@@ -11,14 +11,14 @@ body {
     color: #333;
 }
 
-.container {
+.desktop-container {
     display: flex;
     height: 100vh;
     padding: 20px;
     gap: 20px;
 }
 
-.left-panel {
+.control-panel {
     width: 350px;
     background: rgba(255, 255, 255, 0.95);
     border-radius: 15px;
@@ -27,7 +27,7 @@ body {
     overflow-y: auto;
 }
 
-.right-panel {
+.live2d-panel {
     flex: 1;
     background: rgba(0, 0, 0, 0.8);
     border-radius: 15px;
@@ -144,16 +144,16 @@ h1 {
 
 /* Responsiveness */
 @media (max-width: 1024px) {
-    .container {
+    .desktop-container {
         flex-direction: column;
     }
 
-    .left-panel {
+    .control-panel {
         width: 100%;
         height: 40vh;
     }
 
-    .right-panel {
+    .live2d-panel {
         height: 60vh;
     }
 }

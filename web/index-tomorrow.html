@@ -78,7 +78,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             try {
                 // Create the Live2D application instance
-                live2dApp = new window.Live2DDesktopMate('live2d-canvas', {
+                live2dApp = new Live2DDesktopMate('live2d-canvas', {
                     autoStart: true
                 });
                 
@@ -174,18 +174,6 @@
                 count++;
             }
         }
-        
-        // Make classes available globally for debugging
-        window.Live2DClasses = {
-            Live2DBase,
-            Live2DDrawables, 
-            Live2DParameters,
-            Live2DParts,
-            Live2DCanvasInfo,
-            Live2DModel,
-            Live2DRenderer,
-            Live2DDesktopMate
-        };
     </script>
 </body>
 </html>

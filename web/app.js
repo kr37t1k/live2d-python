@@ -1,6 +1,3 @@
-// Live2D Python - JavaScript Client
-// Handles Live2D model rendering and communication with the server
-
 globalThis.MODEL_PATH = 'web/models/Hiyori/Hiyori.model3.json';
 const WS_URL = window.location.origin;
 
@@ -447,22 +444,17 @@ async function loadModel() {
             showModelError('Live2D library not loaded');
             return;
         }
-        
+        console.log(MODEL_PATH.replace('.model3.json', '.moc3'));
         // Create the desktop mate instance
-        globalThis.character2d = new Live2DDesktopMate({
-            container: '#live2dCanvas',
-            width: 400,
-            height: 600,
-            modelPath: MODEL_PATH
-        });
+        this.character2d = new Live2DDesktopMate({});
         
         console.log('Live2DDesktopMate instance created, now loading model...');
         
         // Load the model using the full model3.json path
-        const success = await globalThis.character2d.loadModel(MODEL_PATH);
+        const success = await this.character2d.loadModel(MODEL_PATH.replace('.model3.json', '.moc3'));
         if (success) {
             // Start the render loop
-            globalThis.character2d.startAnimation(); //live2dRenderer is autoUpdate - true
+            this.character2d.startAnimation(); //live2dRenderer is autoUpdate - true
             console.log('Model loaded and animation started successfully');
         } else {
             console.error('Failed to load model');

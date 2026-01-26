@@ -1,2 +1,6 @@
-flask
-flask_socketio
+Flask==2.3.3
+Flask-SocketIO==5.3.4
+python-socketio==5.9.0
+gevent==23.9.1
+gevent-websocket==0.10.1
+numpy==1.24.3

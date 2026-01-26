@@ -1,0 +1,21 @@
+{
+  "name": "live2d-desktop-mate",
+  "version": "1.0.0",
+  "description": "Production-ready Live2D desktop mascot application",
+  "main": "build.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "python main.py"
+  },
+  "keywords": [
+    "live2d",
+    "desktop",
+    "mascot",
+    "animation"
+  ],
+  "author": "Live2D Desktop Mate",
+  "license": "MIT",
+  "devDependencies": {
+    "terser": "^5.44.1"
+  }
+}

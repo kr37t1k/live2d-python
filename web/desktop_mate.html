@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Desktop Mate</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #live2d-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        #live2d-overlay {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            pointer-events: all;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        #live2d-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: transparent;
+        }
+
+        /* Control panel styling */
+        #control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10000;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group h3 {
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .slider-container {
+            margin-bottom: 10px;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .slider-container input[type="range"] {
+            width: 100%;
+            margin-right: 8px;
+        }
+
+        .slider-container span {
+            font-size: 12px;
+            color: #666;
+            min-width: 40px;
+            display: inline-block;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button.active {
+            background: #ff6b6b;
+        }
+
+        .motion-btn {
+            background: #2196F3;
+        }
+
+        .motion-btn:hover {
+            background: #1976D2;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Click-through elements */
+        .click-through {
+            pointer-events: none;
+        }
+
+        .click-through * {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Live2D Model Container -->
+    <div id="live2d-container">
+        <div id="live2d-overlay">
+            <canvas id="live2d-canvas" width="400" height="600"></canvas>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div id="control-panel" class="click-through">
+        <div class="control-group">
+            <h3>Parameters</h3>
+            <div class="slider-container">
+                <label>Head Rotation X:</label>
+                <input type="range" id="angleX" min="-1" max="1" step="0.01" value="0">
+                <span id="angleXValue">0.00</span>
+            </div>
+            <div class="slider-container">
+                <label>Head Rotation Y:</label>
+                <input type="range" id="angleY" min="-1" max="1" step="0.01" value="0">
+                <span id="angleYValue">0.00</span>
+            </div>
+            <div class="slider-container">
+                <label>Eye Open:</label>
+                <input type="range" id="eyeOpen" min="0" max="1" step="0.01" value="1">
+                <span id="eyeOpenValue">1.00</span>
+            </div>
+            <div class="slider-container">
+                <label>Mouth Open:</label>
+                <input type="range" id="mouthOpen" min="0" max="1" step="0.01" value="0">
+                <span id="mouthOpenValue">0.00</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Expressions</h3>
+            <div class="btn-group">
+                <button class="expr-btn" data-expr="smile">😊 Smile</button>
+                <button class="expr-btn" data-expr="angry">😠 Angry</button>
+                <button class="expr-btn" data-expr="sad">😢 Sad</button>
+                <button class="expr-btn" data-expr="surprised">😮 Surprised</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Motions</h3>
+            <div class="btn-group">
+                <button class="motion-btn" data-group="idle">💤 Idle</button>
+                <button class="motion-btn" data-group="tap_body">👈 Tap Body</button>
+                <button class="motion-btn" data-group="shake">👋 Wave</button>
+            </div>
+        </div>
+
+        <div class="status">
+            <p>Live2D Desktop Mate Ready</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="live2dcubismcore.min.js"></script>
+    <script src="cubismframework.js"></script>
+    <script src="cubismrenderer.js"></script>
+    <script src="Live2DRenderer.js"></script>
+    <script>
+        // Live2D Desktop Mate Application
+        class DesktopMateApp {
+            constructor() {
+                this.renderer = null;
+                this.desktopMate = null;
+                this.isInitialized = false;
+                
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    // Initialize the desktop mate
+                    this.desktopMate = new Live2DDesktopMate({
+                        container: '#live2d-canvas',
+                        width: 400,
+                        height: 600,
+                        alwaysOnTop: true,
+                        clickThrough: false,
+                        enableWindowControls: true,
+                        modelPath: 'models/Hiyori/Hiyori.model3.json'
+                    });
+                    
+                    // Wait for initialization
+                    setTimeout(() => {
+                        this.setupEventListeners();
+                        this.setupUIControls();
+                    }, 1000);
+                    
+                    this.isInitialized = true;
+                    console.log('Desktop Mate initialized successfully');
+                } catch (error) {
+                    console.error('Failed to initialize Desktop Mate:', error);
+                }
+            }
+            
+            setupEventListeners() {
+                if (!this.desktopMate || !this.desktopMate.renderer) return;
+                
+                // Listen for model events
+                this.desktopMate.on('loaded', (data) => {
+                    console.log('Model loaded:', data);
+                });
+                
+                this.desktopMate.on('click', (data) => {
+                    console.log('Model clicked:', data);
+                    // Play tap body motion when clicked
+                    this.desktopMate.playMotion('TapBody', 0, 3);
+                });
+                
+                this.desktopMate.on('error', (data) => {
+                    console.error('Model error:', data);
+                });
+            }
+            
+            setupUIControls() {
+                // Setup parameter sliders
+                const sliders = {
+                    'angleX': 'ParamAngleX',
+                    'angleY': 'ParamAngleY',
+                    'eyeOpen': 'ParamEyeLOpen',
+                    'mouthOpen': 'ParamMouthOpenY'
+                };
+
+                Object.entries(sliders).forEach(([sliderId, paramId]) => {
+                    const slider = document.getElementById(sliderId);
+                    const valueSpan = document.getElementById(sliderId + 'Value');
+
+                    if (slider && valueSpan) {
+                        slider.addEventListener('input', function() {
+                            const value = parseFloat(this.value);
+                            valueSpan.textContent = value.toFixed(2);
+                            
+                            // Update the parameter immediately for smooth interaction
+                            if (window.desktopMateApp && window.desktopMateApp.desktopMate) {
+                                window.desktopMateApp.desktopMate.setParameter(paramId, value);
+                            }
+                        });
+                    }
+                });
+
+                // Setup expression buttons
+                document.querySelectorAll('.expr-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const expr = this.dataset.expr;
+                        const isActive = !this.classList.contains('active');
+
+                        this.classList.toggle('active');
+
+                        if (window.desktopMateApp && window.desktopMateApp.desktopMate) {
+                            if (isActive) {
+                                window.desktopMateApp.desktopMate.setExpression(expr);
+                            }
+                        }
+                    });
+                });
+
+                // Setup motion buttons
+                document.querySelectorAll('.motion-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const group = this.dataset.group;
+
+                        if (window.desktopMateApp && window.desktopMateApp.desktopMate) {
+                            window.desktopMateApp.desktopMate.playMotion(group, 0, 3);
+                        }
+                    });
+                });
+            }
+            
+            // API methods for external control
+            setParameter(paramId, value) {
+                if (this.desktopMate) {
+                    this.desktopMate.setParameter(paramId, value);
+                }
+            }
+            
+            setExpression(expression) {
+                if (this.desktopMate) {
+                    this.desktopMate.setExpression(expression);
+                }
+            }
+            
+            playMotion(group, index = 0, priority = 3) {
+                if (this.desktopMate) {
+                    this.desktopMate.playMotion(group, index, priority);
+                }
+            }
+            
+            destroy() {
+                if (this.desktopMate) {
+                    this.desktopMate.destroy();
+                    this.desktopMate = null;
+                }
+            }
+        }
+
+        // Initialize the app when the page loads
+        window.desktopMateApp = new DesktopMateApp();
+        
+        // Make the app accessible globally for debugging
+        window.Live2DApp = window.desktopMateApp;
+    </script>
+</body>
+</html>

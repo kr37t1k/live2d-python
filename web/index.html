@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Desktop Mate</title>
+    <link rel="stylesheet" href="{{ url_for('web', filename='styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+</head>
+<body>
+    <div class="desktop-container">
+        <div class="control-panel">
+            <h1>Live2D Desktop Mate</h1>
+            <a><a href="web/wrapper-demo.html">Wrapper Demo</a><a href="web/desktop_mate.html"> Or desktop_mate</a></a>
+
+            <div class="control-group">
+                <h3>Parameters</h3>
+                <div class="slider-container">
+                    <label>Head rotation X:</label>
+                    <input type="range" id="angleX" min="-1" max="1" step="0.01" value="0" class="slider">
+                    <span id="angleXValue">0.00</span>
+                </div>
+
+                <div class="slider-container">
+                    <label>Head rotation Y:</label>
+                    <input type="range" id="angleY" min="-1" max="1" step="0.01" value="0" class="slider">
+                    <span id="angleYValue">0.00</span>
+                </div>
+
+                <div class="slider-container">
+                    <label>Eyes open:</label>
+                    <input type="range" id="eyeOpen" min="0" max="1" step="0.01" value="1" class="slider">
+                    <span id="eyeOpenValue">1.00</span>
+                </div>
+
+                <div class="slider-container">
+                    <label>Mouth open:</label>
+                    <input type="range" id="mouthOpen" min="0" max="1" step="0.01" value="0" class="slider">
+                    <span id="mouthOpenValue">0.00</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Expressions</h3>
+                <div class="expression-buttons">
+                    <button class="expr-btn" data-expr="smile">😊 Smile</button>
+                    <button class="expr-btn" data-expr="angry">😠 Angry</button>
+                    <button class="expr-btn" data-expr="sad">😢 Sad</button>
+                    <button class="expr-btn" data-expr="surprised">😮 Surprised</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Motions</h3>
+                <div class="motion-buttons">
+                    <button class="motion-btn" data-group="idle">💤 Idle</button>
+                    <button class="motion-btn" data-group="TapBody">👈 Tap body</button>
+                    <button class="motion-btn" data-group="Shake">👋 Wave</button>
+                </div>
+            </div>
+
+            <div class="status">
+                <p>Clients connected: <span id="clientCount">0</span></p>
+                <p id="connectionStatus">❌ Not connected</p>
+            </div>
+        </div>
+
+        <div class="live2d-panel">
+            <canvas id="live2dCanvas"></canvas>
+        </div>
+    </div>
+
+    <script src="{{ url_for('web', filename='live2dcubismcore.min.js') }}"></script>
+    <script src="{{ url_for('web', filename='cubismframework.js') }}"></script>
+    <script src="{{ url_for('web', filename='cubismrenderer.js') }}"></script>
+    <script src="{{ url_for('web', filename='Live2DWrapper.js') }}"></script>
+    <script src="{{ url_for('web', filename='app.js') }}"></script>
+</body>
+</html>

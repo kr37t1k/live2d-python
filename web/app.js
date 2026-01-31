@@ -434,15 +434,31 @@ async function loadModel() {
     }
     logger.info("✓ Canvas element found");
 
+    // Set canvas dimensions explicitly
+    const canvas = document.getElementById("live2dCanvas");
+    if (canvas) {
+      canvas.width = canvas.clientWidth || 800;
+      canvas.height = canvas.clientHeight || 600;
+    }
+
     // Check for Live2DDesktopMate (from Live2DWrapper.js)
     if (typeof Live2DDesktopMate !== "undefined") {
       logger.info("Using Live2DDesktopMate renderer");
-      AppState.character2d = new Live2DDesktopMate({});
+      
+      // Initialize with canvas reference and dimensions
+      AppState.character2d = new Live2DDesktopMate({
+        container: '#live2dCanvas',
+        width: canvas.width,
+        height: canvas.height
+      });
       globalThis.character2d = AppState.character2d;
 
       // Load model (pass the .model3.json path, not .moc3)
       const modelPath = CONFIG.MODEL_PATH;
       logger.info("Loading model file...", { path: modelPath });
+
+      // Parse the model to extract expressions and motions
+      await parseModelForControls(modelPath);
 
       const success = await AppState.character2d.loadModel(modelPath);
 
@@ -452,6 +468,10 @@ async function loadModel() {
         logger.info("✓ Model loaded and animation started successfully");
         showLoading(false);
         AppState.retryCount = 0;
+        
+        // Now that the model is loaded, we can generate the controls
+        generateExpressionButtons();
+        generateMotionButtons();
       } else {
         throw new Error("Failed to load model (loadModel returned false)");
       }
@@ -596,3 +616,137 @@ window.addEventListener("unhandledrejection", (event) => {
     reason: event.reason,
   });
 });
+
+/**
+ * Parse the model file to extract expressions and motions
+ */
+async function parseModelForControls(modelPath) {
+  try {
+    // Extract directory from model path
+    const modelDir = modelPath.substring(0, modelPath.lastIndexOf('/'));
+    
+    // Fetch model JSON
+    const response = await fetch(modelPath);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const modelData = await response.json();
+    logger.info("Model data parsed", { 
+      motions: Object.keys(modelData.FileReferences.Motions || {}),
+      hasExpressions: !!modelData.Groups?.some(g => g.Name === 'Expressions')
+    });
+    
+    // Store model data globally so we can use it to generate controls
+    globalThis.modelData = modelData;
+    
+  } catch (error) {
+    logger.error("Failed to parse model for controls", error);
+    // Don't throw here since this is just for generating controls
+    globalThis.modelData = null;
+  }
+}
+
+/**
+ * Generate expression buttons dynamically based on parsed model
+ */
+function generateExpressionButtons() {
+  const container = document.querySelector('.expression-buttons');
+  if (!container) {
+    logger.warn("Expression buttons container not found");
+    return;
+  }
+
+  // Clear existing buttons
+  container.innerHTML = '';
+
+  // Check if model data exists and has expressions
+  if (globalThis.modelData) {
+    // For Hiroyi model, expressions are usually stored in motions or parameters
+    // Looking at the model structure, we need to create some default expressions based on parameters
+    const expressions = [
+      { id: 'smile', name: '😊 Smile', paramId: 'ParamMouthForm' },
+      { id: 'wink_l', name: '😉 Wink L', paramId: 'ParamEyeLSmile' },
+      { id: 'wink_r', name: '😜 Wink R', paramId: 'ParamEyeRSmile' },
+      { id: 'surprised', name: '😮 Surprised', paramId: 'ParamMouthOpenY' }
+    ];
+
+    if (expressions.length > 0) {
+      expressions.forEach(expr => {
+        const button = document.createElement('button');
+        button.className = 'expr-btn';
+        button.dataset.expr = expr.id;
+        button.textContent = expr.name;
+        
+        button.addEventListener('click', function() {
+          handleExpressionClick(this);
+        });
+        
+        container.appendChild(button);
+      });
+    } else {
+      // No expressions found, create a disabled button
+      const button = document.createElement('button');
+      button.className = 'expr-btn disabled';
+      button.disabled = true;
+      button.textContent = 'No expressions';
+      container.appendChild(button);
+    }
+  } else {
+    // No model data, create a disabled button
+    const button = document.createElement('button');
+    button.className = 'expr-btn disabled';
+    button.disabled = true;
+    button.textContent = 'No expressions';
+    container.appendChild(button);
+  }
+}
+
+/**
+ * Generate motion buttons dynamically based on parsed model
+ */
+function generateMotionButtons() {
+  const container = document.querySelector('.motion-buttons');
+  if (!container) {
+    logger.warn("Motion buttons container not found");
+    return;
+  }
+
+  // Clear existing buttons
+  container.innerHTML = '';
+
+  // Check if model data exists and has motions
+  if (globalThis.modelData && globalThis.modelData.FileReferences.Motions) {
+    const motions = globalThis.modelData.FileReferences.Motions;
+    const motionGroups = Object.keys(motions);
+
+    if (motionGroups.length > 0) {
+      motionGroups.forEach(group => {
+        const button = document.createElement('button');
+        button.className = 'motion-btn';
+        button.dataset.group = group;
+        button.textContent = group.charAt(0).toUpperCase() + group.slice(1);
+        
+        button.addEventListener('click', function() {
+          handleMotionClick(this);
+        });
+        
+        container.appendChild(button);
+      });
+    } else {
+      // No motions found, create a disabled button
+      const button = document.createElement('button');
+      button.className = 'motion-btn disabled';
+      button.disabled = true;
+      button.textContent = 'No motions';
+      container.appendChild(button);
+    }
+  } else {
+    // No model data or motions, create a disabled button
+    const button = document.createElement('button');
+    button.className = 'motion-btn disabled';
+    button.disabled = true;
+    button.textContent = 'No motions';
+    container.appendChild(button);
+  }
+}

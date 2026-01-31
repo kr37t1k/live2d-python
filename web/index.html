@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live2D Desktop Mate</title>
+    <title>Live2D PyRenderer</title>
     <link rel="stylesheet" href="{{ url_for('web', filename='styles.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
 </head>
 <body>
     <div class="desktop-container">
         <div class="control-panel">
-            <h1>Live2D Desktop Mate</h1>
-            <a><a href="web/wrapper-demo.html">Wrapper Demo</a><a href="web/desktop_mate.html"> Or desktop_mate</a></a>
+            <h1>Live2D PyRenderer</h1>
 
             <div class="control-group">
                 <h3>Parameters</h3>
@@ -63,17 +62,34 @@
                 <p>Clients connected: <span id="clientCount">0</span></p>
                 <p id="connectionStatus">❌ Not connected</p>
             </div>
+
+            <div class="debug-log">
+                <h3>Debug Log</h3>
+                <div id="logContainer" class="log-output"></div>
+                <button id="clearLogBtn" class="btn-secondary">Clear Log</button>
+            </div>
         </div>
 
         <div class="live2d-panel">
             <canvas id="live2dCanvas"></canvas>
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="spinner"></div>
+                <p>Loading Live2D Model...</p>
+            </div>
+            <div id="errorOverlay" class="error-overlay" style="display: none;">
+                <div class="error-content">
+                    <h3>⚠️ Error Loading Model</h3>
+                    <p id="errorMessage"></p>
+                    <button id="retryBtn" class="btn-primary">Retry</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="{{ url_for('web', filename='live2dcubismcore.min.js') }}"></script>
     <script src="{{ url_for('web', filename='cubismframework.js') }}"></script>
     <script src="{{ url_for('web', filename='cubismrenderer.js') }}"></script>
-    <script src="{{ url_for('web', filename='Live2DWrapper.js') }}"></script>
+    <script src="{{ url_for('web', filename='Live2DRenderer.js') }}"></script>
     <script src="{{ url_for('web', filename='app.js') }}"></script>
 </body>
 </html>

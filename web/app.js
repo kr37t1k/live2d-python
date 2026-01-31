@@ -1,512 +1,598 @@
-globalThis.MODEL_PATH = 'web/models/Hiyori/Hiyori.model3.json';
-const WS_URL = window.location.origin;
+/**
+ * Live2D PyRenderer - Main Application
+ * Enhanced with comprehensive error handling, logging, and fallbacks
+ */
 
-console.log('Live2D Core available:', typeof Live2DCubismCore);
-console.log('Socket URL:', WS_URL);
+// Configuration
+const CONFIG = {
+  MODEL_PATH: "web/models/Hiyori/Hiyori.model3.json",
+  WS_URL: window.location.origin,
+  SOCKET_OPTIONS: {
+    transports: ["websocket", "polling"],
+    reconnectionAttempts: 5,
+    timeout: 10000,
+  },
+  LOGGING: {
+    enabled: true,
+    maxEntries: 100,
+    levels: ["error", "warn", "info", "debug"],
+  },
+};
 
-let socket;
-let live2dRenderer = null;
+// Global state
+const AppState = {
+  socket: null,
+  live2dRenderer: null,
+  character2d: null,
+  isModelLoaded: false,
+  retryCount: 0,
+  maxRetries: 3,
+};
 
-// Initialize socket connection
+/**
+ * Enhanced Logger with UI output
+ */
+class Logger {
+  constructor() {
+    this.logs = [];
+    this.container = null;
+  }
+
+  init() {
+    this.container = document.getElementById("logContainer");
+    if (!this.container) {
+      console.warn("[Logger] Log container not found");
+    }
+  }
+
+  log(level, message, data = null) {
+    if (!CONFIG.LOGGING.enabled) return;
+
+    const timestamp = new Date().toISOString();
+    const logEntry = { level, message, data, timestamp };
+
+    this.logs.push(logEntry);
+
+    // Limit log entries
+    if (this.logs.length > CONFIG.LOGGING.maxEntries) {
+      this.logs.shift();
+    }
+
+    // Console output with styling
+    const styles = {
+      error: "color: #f44336; font-weight: bold;",
+      warn: "color: #ff9800; font-weight: bold;",
+      info: "color: #2196F3;",
+      debug: "color: #9E9E9E;",
+    };
+
+    console.log(
+      `%c[${level.toUpperCase()}] ${message}`,
+      styles[level] || "",
+      data || "",
+    );
+
+    // UI output
+    this.updateUI(logEntry);
+  }
+
+  updateUI(logEntry) {
+    if (!this.container) return;
+
+    const logElement = document.createElement("div");
+    logElement.className = `log-entry log-${logEntry.level}`;
+
+    const time = new Date(logEntry.timestamp).toLocaleTimeString();
+    logElement.innerHTML = `
+            <span class="log-time">${time}</span>
+            <span class="log-level">[${logEntry.level.toUpperCase()}]</span>
+            <span class="log-message">${logEntry.message}</span>
+        `;
+
+    this.container.appendChild(logElement);
+    this.container.scrollTop = this.container.scrollHeight;
+  }
+
+  clear() {
+    this.logs = [];
+    if (this.container) {
+      this.container.innerHTML = "";
+    }
+  }
+
+  error(message, data) {
+    this.log("error", message, data);
+  }
+  warn(message, data) {
+    this.log("warn", message, data);
+  }
+  info(message, data) {
+    this.log("info", message, data);
+  }
+  debug(message, data) {
+    this.log("debug", message, data);
+  }
+}
+
+const logger = new Logger();
+
+/**
+ * Initialize Socket.IO connection with fallbacks
+ */
 function initSocket() {
-    try {
-        socket = io(WS_URL, {
-            transports: ['websocket', 'polling'],
-            reconnectionAttempts: 5,
-            timeout: 10000
-        });
-    } catch (e) {
-        console.error('Socket connection error:', e);
-    }
+  logger.info("Initializing socket connection...", { url: CONFIG.WS_URL });
 
-    socket.on('connect', () => {
-        console.log('✓ Server connected');
-        document.getElementById('connectionStatus').innerHTML = '✅ Server connected';
-        document.getElementById('connectionStatus').style.color = '#4CAF50';
-    });
+  try {
+    AppState.socket = io(CONFIG.WS_URL, CONFIG.SOCKET_OPTIONS);
+  } catch (error) {
+    logger.error("Socket initialization failed", error);
+    showError("Failed to initialize socket connection");
+    return;
+  }
 
-    socket.on('disconnect', () => {
-        console.log('✗ Server disconnected');
-        document.getElementById('connectionStatus').innerHTML = '❌ Server disconnected';
-        document.getElementById('connectionStatus').style.color = '#f44336';
-    });
+  AppState.socket.on("connect", () => {
+    logger.info("✓ Server connected");
+    updateConnectionStatus(true);
+  });
 
-    socket.on('model_state', (data) => {
-        console.log('Model state received:', data);
-        applyModelState(data);
-    });
+  AppState.socket.on("disconnect", () => {
+    logger.warn("✗ Server disconnected");
+    updateConnectionStatus(false);
+  });
 
-    socket.on('parameter_update', (data) => {
-        updateParameter(data.id, data.value);
-    });
+  AppState.socket.on("connect_error", (error) => {
+    logger.error("Socket connection error", error);
+  });
 
-    socket.on('expression_update', (data) => {
-        setExpression(data.expression, data.active);
-    });
+  AppState.socket.on("model_state", (data) => {
+    logger.debug("Model state received", data);
+    applyModelState(data);
+  });
 
-    socket.on('motion_start', (data) => {
-        console.log('Motion started:', data);
-        // Handle motion playback
-    });
+  AppState.socket.on("parameter_update", (data) => {
+    //logger.debug("Parameter update", data);
+    updateParameter(data.id, data.value);
+  });
 
-    socket.on('clients_count_response', (data) => {
-        document.getElementById('clientCount').textContent = data.count;
-    });
+  AppState.socket.on("expression_update", (data) => {
+    logger.debug("Expression update", data);
+    setExpression(data.expression, data.active);
+  });
+
+  AppState.socket.on("motion_start", (data) => {
+    logger.info("Motion started", data);
+  });
+
+  AppState.socket.on("clients_count_response", (data) => {
+    updateClientCount(data.count);
+  });
 }
 
-// Request client count from server
+/**
+ * Update connection status in UI
+ */
+function updateConnectionStatus(isConnected) {
+  const statusElement = document.getElementById("connectionStatus");
+  if (!statusElement) return;
+
+  if (isConnected) {
+    statusElement.innerHTML = "✅ Server connected";
+    statusElement.style.color = "#4CAF50";
+  } else {
+    statusElement.innerHTML = "❌ Server disconnected";
+    statusElement.style.color = "#f44336";
+  }
+}
+
+/**
+ * Update client count in UI
+ */
+function updateClientCount(count) {
+  const countElement = document.getElementById("clientCount");
+  if (countElement) {
+    countElement.textContent = count;
+  }
+}
+
+/**
+ * Request client count from server
+ */
 function requestClientCount() {
-    if (socket) {
-        socket.emit('get_clients_count', {});
+  if (AppState.socket && AppState.socket.connected) {
+    AppState.socket.emit("get_clients_count", {});
+  }
+}
+
+/**
+ * Apply model state from server
+ */
+function applyModelState(state) {
+  if (!state) {
+    logger.warn("Empty model state received");
+    return;
+  }
+
+  logger.debug("Applying model state", state);
+
+  try {
+    if (state.parameters) {
+      Object.entries(state.parameters).forEach(([param, value]) => {
+        updateParameter(param, value);
+      });
     }
-}
 
-// Apply model state from server 
-function applyModelState(state) { 
-    if (!state) return; 
-    console.log("Applying model state:", state); 
-
-    if (state.parameters) { 
-        Object.entries(state.parameters).forEach(([param, value]) => { 
-            updateParameter(param, value); 
-        }); 
-    } 
-
-    if (state.expressions) { 
-        Object.entries(state.expressions).forEach(([expr, active]) => { 
-            setExpression(expr, active); 
-        }); 
-    } 
-}
-
-// Update parameter value 
-function updateParameter(paramId, value) { 
-    if (live2dRenderer) {
-        live2dRenderer.setParameter(paramId, value);
-        console.log(`Updated parameter ${paramId} = ${value}`);
+    if (state.expressions) {
+      Object.entries(state.expressions).forEach(([expr, active]) => {
+        setExpression(expr, active);
+      });
     }
+  } catch (error) {
+    logger.error("Failed to apply model state", error);
+  }
 }
 
-// Set expression state 
-function setExpression(expression, active) { 
-    if (live2dRenderer) {
-        if (active) {
-            live2dRenderer.setExpression(expression);
-            console.log(`Expression ${expression}: On`);
-        } else {
-            console.log(`Expression ${expression}: Off`);
-        }
+/**
+ * Update parameter value with fallbacks
+ */
+function updateParameter(paramId, value) {
+  try {
+    if (
+      AppState.character2d &&
+      typeof AppState.character2d.setParameter === "function"
+    ) {
+      AppState.character2d.setParameter(paramId, value);
+      // Reduced logging - only log on first call or errors
+    } else if (
+      AppState.live2dRenderer &&
+      typeof AppState.live2dRenderer.setParameter === "function"
+    ) {
+      AppState.live2dRenderer.setParameter(paramId, value);
+      // Reduced logging - only log on first call or errors
+    } else {
+      logger.warn("No renderer available to update parameter", {
+        paramId,
+        value,
+      });
     }
+  } catch (error) {
+    logger.error("Failed to update parameter", { paramId, value, error });
+  }
 }
 
-// Initialize UI controls
+/**
+ * Set expression state with fallbacks
+ */
+function setExpression(expression, active) {
+  try {
+    if (
+      AppState.character2d &&
+      typeof AppState.character2d.setExpression === "function"
+    ) {
+      if (active) {
+        AppState.character2d.setExpression(expression);
+        logger.info(`Expression ${expression}: On`);
+      } else {
+        logger.info(`Expression ${expression}: Off`);
+      }
+    } else if (
+      AppState.live2dRenderer &&
+      typeof AppState.live2dRenderer.setExpression === "function"
+    ) {
+      AppState.live2dRenderer.setExpression(expression);
+      logger.info(`Expression (fallback) ${expression}: On`);
+    } else {
+      logger.warn("No renderer available to set expression", {
+        expression,
+        active,
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to set expression", { expression, active, error });
+  }
+}
+
+/**
+ * Initialize UI controls with error handling
+ */
 function initControls() {
+  logger.info("Initializing UI controls...");
+
+  try {
+    // Parameter sliders
     const sliders = {
-        'angleX': 'ParamAngleX',
-        'angleY': 'ParamAngleY',
-        'eyeOpen': 'ParamEyeLOpen',
-        'mouthOpen': 'ParamMouthOpenY'
+      angleX: "ParamAngleX",
+      angleY: "ParamAngleY",
+      eyeOpen: "ParamEyeLOpen",
+      mouthOpen: "ParamMouthOpenY",
     };
 
     Object.entries(sliders).forEach(([sliderId, paramId]) => {
-        const slider = document.getElementById(sliderId);
-        const valueSpan = document.getElementById(sliderId + 'Value');
+      const slider = document.getElementById(sliderId);
+      const valueSpan = document.getElementById(sliderId + "Value");
 
-        if (slider && valueSpan) {
-            slider.addEventListener('input', function() {
-                const value = parseFloat(this.value);
-                valueSpan.textContent = value.toFixed(2);
+      if (!slider || !valueSpan) {
+        logger.warn(`Slider or value span not found: ${sliderId}`);
+        return;
+      }
 
-                if (socket) {
-                    socket.emit('set_parameter', {
-                        id: paramId,
-                        value: value
-                    });
-                }
-                
-                // Update the parameter immediately for smooth interaction
-                updateParameter(paramId, value);
-            });
+      slider.addEventListener("input", function () {
+        const value = parseFloat(this.value);
+        valueSpan.textContent = value.toFixed(2);
+
+        // Send to server
+        if (AppState.socket && AppState.socket.connected) {
+          AppState.socket.emit("set_parameter", { id: paramId, value });
         }
+
+        // Update locally
+        updateParameter(paramId, value);
+      });
     });
 
-    // Add event listeners to expression buttons
-    document.querySelectorAll('.expr-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const expr = this.dataset.expr;
-            const isActive = !this.classList.contains('active');
-
-            this.classList.toggle('active');
-
-            if (socket) {
-                socket.emit('set_expression', {
-                    expression: expr,
-                    active: isActive
-                });
-            }
-            
-            // Set expression on the renderer
-            if (globalThis.character2d) {
-                if (isActive) {
-                    globalThis.character2d.setExpression(expr);
-                }
-            }
-        });
+    // Expression buttons
+    document.querySelectorAll(".expr-btn").forEach((btn) => {
+      btn.addEventListener("click", function () {
+        handleExpressionClick(this);
+      });
     });
 
-    // Add event listeners to motion buttons
-    document.querySelectorAll('.motion-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const group = this.dataset.group;
-
-            if (socket) {
-                socket.emit('play_motion', {
-                    group: group,
-                    index: 0,
-                    priority: 3
-                });
-            }
-            
-            // Play motion on the renderer
-            if (globalThis.character2d) {
-                globalThis.character2d.playMotion(group, 0, 3);
-            }
-        });
+    // Motion buttons
+    document.querySelectorAll(".motion-btn").forEach((btn) => {
+      btn.addEventListener("click", function () {
+        handleMotionClick(this);
+      });
     });
+
+    // Clear log button
+    const clearLogBtn = document.getElementById("clearLogBtn");
+    if (clearLogBtn) {
+      clearLogBtn.addEventListener("click", () => logger.clear());
+    }
+
+    // Retry button
+    const retryBtn = document.getElementById("retryBtn");
+    if (retryBtn) {
+      retryBtn.addEventListener("click", () => retryLoadModel());
+    }
+
+    logger.info("UI controls initialized successfully");
+  } catch (error) {
+    logger.error("Failed to initialize controls", error);
+  }
 }
 
-// Dynamically generate expression and motion buttons from model3.json
-async function generateModelControls(modelPath) {
-    try {
-        // Load the model configuration
-        const response = await fetch(modelPath);
-        if (!response.ok) {
-            throw new Error(`Failed to load model config: ${response.status} ${response.statusText}`);
-        }
-        
-        const modelConfig = await response.json();
-        
-        // Generate motion buttons from motion groups
-        if (modelConfig.FileReferences.Motions) {
-            generateMotionButtons(modelConfig.FileReferences.Motions);
-        }
-        
-        // Some models have expressions in the Groups section or as special motions
-        // Check for expression-like parameters in Groups
-        if (modelConfig.Groups) {
-            const expressionGroup = modelConfig.Groups.find(group => group.Name === 'Expressions' || group.Name === 'LipSync');
-            if (expressionGroup) {
-                // Generate expression buttons based on expression parameters
-                generateExpressionButtonsFromParameters(expressionGroup.Ids);
-            }
-        }
-        
-        // If no expressions were found in the above, try to generate from motions that might be expressions
-        if (!document.querySelectorAll('.expr-btn').length) {
-            // Look for common expression motion names in the motions
-            const motionNames = Object.keys(modelConfig.FileReferences.Motions || {});
-            const expressionMotions = motionNames.filter(name => 
-                name.toLowerCase().includes('exp') || 
-                name.toLowerCase().includes('expression') ||
-                ['Idle', 'F01', 'F02', 'F03', 'F04', 'F05', 'F06', 'F07', 'F08', 'F09', 'F10'].includes(name)
-            );
-            
-            if (expressionMotions.length > 0) {
-                generateExpressionButtonsFromMotions(expressionMotions);
-            }
-        }
-        
-    } catch (error) {
-        console.error('Failed to generate model controls:', error);
-        // Use fallback buttons
-        setupFallbackButtons();
+/**
+ * Handle expression button click
+ */
+function handleExpressionClick(button) {
+  try {
+    const expr = button.dataset.expr;
+    const isActive = !button.classList.contains("active");
+
+    button.classList.toggle("active");
+
+    // Send to server
+    if (AppState.socket && AppState.socket.connected) {
+      AppState.socket.emit("set_expression", {
+        expression: expr,
+        active: isActive,
+      });
     }
+
+    // Set locally
+    setExpression(expr, isActive);
+  } catch (error) {
+    logger.error("Failed to handle expression click", error);
+  }
 }
 
-// Generate expression buttons from parameters (if available in model config)
-function generateExpressionButtonsFromParameters(paramIds) {
-    const exprContainer = findExpressionContainer();
-    if (!exprContainer) return;
-    
-    // Clear existing buttons
-    exprContainer.innerHTML = '';
-    
-    paramIds.forEach(paramId => {
-        const paramName = paramId.replace('Param', '');
-        const button = document.createElement('button');
-        button.className = 'expr-btn';
-        button.dataset.expr = paramId;
-        button.textContent = `😊 ${paramName}`;
-        button.addEventListener('click', handleExpressionClick);
-        exprContainer.appendChild(button);
-    });
+/**
+ * Handle motion button click
+ */
+function handleMotionClick(button) {
+  try {
+    const group = button.dataset.group;
+
+    // Send to server
+    if (AppState.socket && AppState.socket.connected) {
+      AppState.socket.emit("play_motion", { group, index: 0, priority: 3 });
+    }
+
+    // Play locally
+    if (
+      AppState.character2d &&
+      typeof AppState.character2d.playMotion === "function"
+    ) {
+      AppState.character2d.playMotion(group, 0, 3);
+      logger.info(`Playing motion: ${group}`);
+    } else {
+      logger.warn("No renderer available to play motion", { group });
+    }
+  } catch (error) {
+    logger.error("Failed to handle motion click", error);
+  }
 }
 
-// Generate expression buttons from motion names that might be expressions
-function generateExpressionButtonsFromMotions(motionNames) {
-    const exprContainer = findExpressionContainer();
-    if (!exprContainer) return;
-    
-    // Clear existing buttons
-    exprContainer.innerHTML = '';
-    
-    motionNames.forEach(motionName => {
-        const button = document.createElement('button');
-        button.className = 'expr-btn';
-        button.dataset.expr = motionName;
-        button.textContent = `😊 ${motionName}`;
-        button.addEventListener('click', handleExpressionClick);
-        exprContainer.appendChild(button);
-    });
-}
-
-// Helper function to find expression container
-function findExpressionContainer() {
-    let exprContainer = document.querySelector('.expression-buttons');
-    if (!exprContainer) {
-        // Look for a div that contains expression buttons
-        const exprSections = document.querySelectorAll('.control-group');
-        for (let section of exprSections) {
-            if (section.textContent.toLowerCase().includes('expression') || section.querySelector('.expr-btn')) {
-                exprContainer = section.querySelector('div') || section;
-                break;
-            }
-        }
-    }
-    if (!exprContainer) {
-        exprContainer = document.querySelector('.expr-btn')?.parentElement;
-    }
-    return exprContainer;
-}
-
-// Generate expression buttons from expression files
-function generateExpressionButtons(expressions) {
-    // Find expression container by looking for elements with class or text
-    let exprContainer = document.querySelector('.expression-buttons');
-    if (!exprContainer) {
-        // Look for a div that contains expression buttons
-        const exprSections = document.querySelectorAll('.control-group');
-        for (let section of exprSections) {
-            if (section.textContent.includes('Expression') || section.querySelector('.expr-btn')) {
-                exprContainer = section.querySelector('div') || section;
-                break;
-            }
-        }
-    }
-    if (!exprContainer) {
-        exprContainer = document.querySelector('.expr-btn')?.parentElement;
-    }
-    
-    if (!exprContainer) return;
-    
-    exprContainer.innerHTML = ''; // Clear existing buttons
-    
-    expressions.forEach(expr => {
-        const exprName = expr.File.split('/').pop().replace('.exp3.json', '');
-        const button = document.createElement('button');
-        button.className = 'expr-btn';
-        button.dataset.expr = exprName;
-        button.textContent = `😊 ${exprName}`;
-        button.addEventListener('click', handleExpressionClick);
-        exprContainer.appendChild(button);
-    });
-}
-
-// Generate motion buttons from motion groups
-function generateMotionButtons(motions) {
-    // Find motion container by looking for elements with class or text
-    let motionContainer = document.querySelector('.motion-buttons');
-    if (!motionContainer) {
-        // Look for a div that contains motion buttons
-        const motionSections = document.querySelectorAll('.control-group');
-        for (let section of motionSections) {
-            if (section.textContent.toLowerCase().includes('motion') || section.querySelector('.motion-btn')) {
-                motionContainer = section.querySelector('div') || section;
-                break;
-            }
-        }
-    }
-    if (!motionContainer) {
-        motionContainer = document.querySelector('.motion-btn')?.parentElement;
-    }
-    
-    if (!motionContainer) return;
-    
-    motionContainer.innerHTML = ''; // Clear existing buttons
-    
-    Object.keys(motions).forEach(groupName => {
-        const button = document.createElement('button');
-        button.className = 'motion-btn';
-        button.dataset.group = groupName;
-        button.textContent = `🎭 ${groupName}`;
-        button.addEventListener('click', handleMotionClick);
-        motionContainer.appendChild(button);
-    });
-}
-
-// Fallback function to set up default buttons if model parsing fails
-function setupFallbackButtons() {
-    console.log('Using fallback buttons');
-    
-    // Setup expression buttons
-    const exprButtons = [
-        { id: 'smile', text: '😊 Smile' },
-        { id: 'angry', text: '😠 Angry' },
-        { id: 'sad', text: '😢 Sad' },
-        { id: 'surprised', text: '😮 Surprised' }
-    ];
-    
-    const exprContainer = document.querySelector('.expression-buttons');
-    if (exprContainer) {
-        exprContainer.innerHTML = '';
-        exprButtons.forEach(expr => {
-            const button = document.createElement('button');
-            button.className = 'expr-btn';
-            button.dataset.expr = expr.id;
-            button.textContent = expr.text;
-            button.addEventListener('click', handleExpressionClick);
-            exprContainer.appendChild(button);
-        });
-    }
-    
-    // Setup motion buttons
-    const motionButtons = [
-        { id: 'idle', text: '💤 Idle' },
-        { id: 'TapBody', text: '👈 Tap body' },
-        { id: 'Shake', text: '👋 Wave' }
-    ];
-    
-    const motionContainer = document.querySelector('.motion-buttons');
-    if (motionContainer) {
-        motionContainer.innerHTML = '';
-        motionButtons.forEach(motion => {
-            const button = document.createElement('button');
-            button.className = 'motion-btn';
-            button.dataset.group = motion.id;
-            button.textContent = motion.text;
-            button.addEventListener('click', handleMotionClick);
-            motionContainer.appendChild(button);
-        });
-    }
-}
-
-// Handle expression button click
-function handleExpressionClick(e) {
-    const expr = e.target.dataset.expr;
-    const isActive = !e.target.classList.contains('active');
-    
-    e.target.classList.toggle('active');
-    
-    if (socket) {
-        socket.emit('set_expression', {
-            expression: expr,
-            active: isActive
-        });
-    }
-    
-    // Set expression on the renderer
-    if (globalThis.character2d) {
-        if (isActive) {
-            globalThis.character2d.setExpression(expr);
-        }
-    }
-}
-
-// Handle motion button click
-function handleMotionClick(e) {
-    const group = e.target.dataset.group;
-    
-    if (socket) {
-        socket.emit('play_motion', {
-            group: group,
-            index: 0,
-            priority: 3
-        });
-    }
-    
-    // Play motion on the renderer
-    if (globalThis.character2d) {
-        globalThis.character2d.playMotion(group, 0, 3);
-    }
-}
-
-// Load and render the Live2D model
+/**
+ * Load Live2D model with comprehensive error handling and fallbacks
+ */
 async function loadModel() {
-    try {
-        console.log('Loading model from:', MODEL_PATH);
-        
-        // Get the canvas element
-        globalThis.live2dCanvas = document.getElementById('live2dCanvas');
-        
-        // Check if Live2DDesktopMate exists
-        if (typeof Live2DDesktopMate === 'undefined') {
-            console.error('Live2DDesktopMate is not defined. Make sure Live2DWrapper.js is loaded.');
-            showModelError('Live2D library not loaded');
-            return;
-        }
-        console.log(MODEL_PATH.replace('.model3.json', '.moc3'));
-        // Create the desktop mate instance
-        this.character2d = new Live2DDesktopMate({});
-        
-        console.log('Live2DDesktopMate instance created, now loading model...');
-        
-        // Load the model using the full model3.json path
-        const success = await this.character2d.loadModel(MODEL_PATH.replace('.model3.json', '.moc3'));
-        if (success) {
-            // Start the render loop
-            this.character2d.startAnimation(); //live2dRenderer is autoUpdate - true
-            console.log('Model loaded and animation started successfully');
-        } else {
-            console.error('Failed to load model');
-            showModelError('Failed to load Live2D model');
-        }
-        
-    } catch (error) {
-        console.error('Failed to load model:', error);
-        console.error('Error details:', error.message, error.stack);
-        console.error('Model path:', MODEL_PATH);
-        
-        // Check if core library is loaded
-        if (typeof Live2DCubismCore === 'undefined') {
-            console.error('Live2DCubismCore is not loaded!');
-        } else {
-            console.log('Live2DCubismCore is loaded');
-        }
-        
-        showModelError('Failed to load Live2D model. Check console for details.');
+  logger.info("Loading Live2D model...", { path: CONFIG.MODEL_PATH });
+  showLoading(true);
+
+  try {
+    // Check if Live2DCubismCore is loaded
+    if (typeof Live2DCubismCore === "undefined") {
+      throw new Error("Live2D Cubism Core library not loaded");
     }
+    logger.info("✓ Live2D Cubism Core loaded");
+
+    // Get canvas
+    const canvas = document.getElementById("live2dCanvas");
+    if (!canvas) {
+      throw new Error("Canvas element not found");
+    }
+    logger.info("✓ Canvas element found");
+
+    // Check for Live2DDesktopMate (from Live2DWrapper.js)
+    if (typeof Live2DDesktopMate !== "undefined") {
+      logger.info("Using Live2DDesktopMate renderer");
+      AppState.character2d = new Live2DDesktopMate({});
+      globalThis.character2d = AppState.character2d;
+
+      // Load model (pass the .model3.json path, not .moc3)
+      const modelPath = CONFIG.MODEL_PATH;
+      logger.info("Loading model file...", { path: modelPath });
+
+      const success = await AppState.character2d.loadModel(modelPath);
+
+      if (success) {
+        AppState.character2d.startAnimation();
+        AppState.isModelLoaded = true;
+        logger.info("✓ Model loaded and animation started successfully");
+        showLoading(false);
+        AppState.retryCount = 0;
+      } else {
+        throw new Error("Failed to load model (loadModel returned false)");
+      }
+    } else {
+      throw new Error("Live2DDesktopMate class not available");
+    }
+  } catch (error) {
+    logger.error("Failed to load model", error);
+    showError(error.message);
+    showLoading(false);
+
+    // Retry logic
+    if (AppState.retryCount < AppState.maxRetries) {
+      AppState.retryCount++;
+      logger.info(
+        `Retrying... (${AppState.retryCount}/${AppState.maxRetries})`,
+      );
+      setTimeout(() => loadModel(), 2000);
+    } else {
+      logger.error("Max retry attempts reached");
+    }
+  }
 }
 
-// Show error message in the UI
-function showModelError(message) {
-    const canvas = document.getElementById('live2dCanvas');
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'red';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(message, canvas.width / 2, canvas.height / 2);
-    }
-    console.error(message);
+/**
+ * Retry loading the model
+ */
+function retryLoadModel() {
+  logger.info("Manual retry triggered");
+  AppState.retryCount = 0;
+  hideError();
+  loadModel();
 }
 
-// Initialize the application
+/**
+ * Show/hide loading overlay
+ */
+function showLoading(show) {
+  const overlay = document.getElementById("loadingOverlay");
+  if (overlay) {
+    overlay.style.display = show ? "flex" : "none";
+  }
+}
+
+/**
+ * Show error overlay
+ */
+function showError(message) {
+  const overlay = document.getElementById("errorOverlay");
+  const messageElement = document.getElementById("errorMessage");
+
+  if (overlay && messageElement) {
+    messageElement.textContent = message;
+    overlay.style.display = "flex";
+  }
+}
+
+/**
+ * Hide error overlay
+ */
+function hideError() {
+  const overlay = document.getElementById("errorOverlay");
+  if (overlay) {
+    overlay.style.display = "none";
+  }
+}
+
+/**
+ * Initialize the application
+ */
 async function initApp() {
+  logger.info("=== Live2D Desktop Mate Starting ===");
+  logger.init();
+
+  try {
+    // Check browser compatibility
+    if (!window.WebGLRenderingContext) {
+      throw new Error("WebGL not supported in this browser");
+    }
+    logger.info("✓ WebGL supported");
+
     // Initialize socket
     initSocket();
-    
-    // Load the model first
-    await loadModel();
-    
-    // Initialize controls after model is loaded
+
+    // Initialize controls
     initControls();
-    
-    // Generate dynamic controls based on the model
-    await generateModelControls(MODEL_PATH);
-    
-    // Set up periodic client count updates
-    setInterval(requestClientCount, 10000); // Update every second
+
+    // Load model
+    await loadModel();
+
+    // Set up periodic updates
+    setInterval(requestClientCount, 10000);
+
+    logger.info("=== Application initialized successfully ===");
+  } catch (error) {
+    logger.error("Application initialization failed", error);
+    showError("Failed to initialize application: " + error.message);
+  }
 }
 
-// Start the application when the page loads
-window.addEventListener('load', initApp);
+/**
+ * Handle page unload
+ */
+window.addEventListener("beforeunload", () => {
+  logger.info("Page unloading, cleaning up...");
+
+  if (AppState.socket) {
+    AppState.socket.disconnect();
+  }
+
+  if (
+    AppState.character2d &&
+    typeof AppState.character2d.destroy === "function"
+  ) {
+    AppState.character2d.destroy();
+  }
+});
+
+/**
+ * Start the application when page loads
+ */
+window.addEventListener("load", initApp);
+
+/**
+ * Handle errors globally
+ */
+window.addEventListener("error", (event) => {
+  logger.error("Global error caught", {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    error: event.error,
+  });
+});
+
+/**
+ * Handle unhandled promise rejections
+ */
+window.addEventListener("unhandledrejection", (event) => {
+  logger.error("Unhandled promise rejection", {
+    reason: event.reason,
+  });
+});

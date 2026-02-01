@@ -431,31 +431,22 @@ async function loadModel() {
     const canvas = document.getElementById("live2dCanvas");
     if (!canvas) {
       throw new Error("Canvas element not found");
-    }
-    logger.info("✓ Canvas element found");
-
+    } else {
     // Set canvas dimensions explicitly
-    const canvas = document.getElementById("live2dCanvas");
-    if (canvas) {
       canvas.width = canvas.clientWidth || 800;
       canvas.height = canvas.clientHeight || 600;
     }
+    logger.info("✓ Canvas element found");
 
-    // Check for Live2DDesktopMate (from Live2DWrapper.js)
-    if (typeof Live2DDesktopMate !== "undefined") {
-      logger.info("Using Live2DDesktopMate renderer");
-      
-      // Initialize with canvas reference and dimensions
-      AppState.character2d = new Live2DDesktopMate({
-        container: '#live2dCanvas',
-        width: canvas.width,
-        height: canvas.height
-      });
-      globalThis.character2d = AppState.character2d;
+
+    if (typeof Live2DRenderer !== "undefined") {
+      logger.info("Using live2drenderer");
 
       // Load model (pass the .model3.json path, not .moc3)
       const modelPath = CONFIG.MODEL_PATH;
       logger.info("Loading model file...", { path: modelPath });
+      AppState.character2d = new Live2DRenderer(canvas, {});
+      globalThis.character2d = AppState.character2d;
 
       // Parse the model to extract expressions and motions
       await parseModelForControls(modelPath);
@@ -463,7 +454,7 @@ async function loadModel() {
       const success = await AppState.character2d.loadModel(modelPath);
 
       if (success) {
-        AppState.character2d.startAnimation();
+        AppState.character2d.startRenderLoop();
         AppState.isModelLoaded = true;
         logger.info("✓ Model loaded and animation started successfully");
         showLoading(false);
@@ -543,7 +534,7 @@ function hideError() {
  * Initialize the application
  */
 async function initApp() {
-  logger.info("=== Live2D Desktop Mate Starting ===");
+  logger.info("=== Live2D PyRenderer Starting ===");
   logger.init();
 
   try {

@@ -671,7 +671,7 @@ class Live2DRenderer {
     }
 
     /**
-     * Update physics simulation
+     * ToDo : Update physics simulation
      */
     updatePhysics(deltaTimeSeconds) {
         // Physics update placeholder
@@ -691,7 +691,7 @@ class Live2DRenderer {
     }
 
     /**
-     * Render the model
+     * Render the model - ToDo: Rendering method not show the model, need to fix the problem here, make the fallback render methods and the buttons on the index.html with "Does render not show model? Check out this method!"
      */
     render() {
         if (!this.live2dModel) return;
@@ -1105,12 +1105,12 @@ class Live2DRenderer {
 }
 
 /**
- * Live2DDesktopMate class - simplified wrapper
+ * Live2D Tarakara Lilit persona t-renderer class simplified
  */
-class Live2DDesktopMate {
+class L2D_T_Lilit {
     constructor(options = {}) {
-        this.logger = new RendererLogger('[Live2DDesktopMate]');
-        this.logger.info('Initializing desktop mate...', { options });
+        this.logger = new RendererLogger('[L2D-T.Lilit]');
+        this.logger.info('Initializing T.Lilit ...', { options });
 
         this.options = {
             container: 'body',
@@ -1119,7 +1119,7 @@ class Live2DDesktopMate {
             alwaysOnTop: true,
             clickThrough: false,
             enableWindowControls: true,
-            modelPath: globalThis.MODEL_PATH || 'models/Hiyori/Hiyori.model3.json',
+            modelPath: globalThis.MODEL_PATH,
             ...options
         };
 
@@ -1234,9 +1234,9 @@ class Live2DDesktopMate {
 
 // Export classes
 if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
-    module.exports = { Live2DRenderer, Live2DDesktopMate, Matrix44 };
+    module.exports = { Live2DRenderer, L2D_T_Lilit, Matrix44 };
 } else if (typeof window !== 'undefined') {
     window.Live2DRenderer = Live2DRenderer;
-    window.Live2DDesktopMate = Live2DDesktopMate;
+    window.Live2DDesktopMate = L2D_T_Lilit;
     window.Matrix44 = Matrix44;
 }

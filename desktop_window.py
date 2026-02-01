@@ -38,7 +38,7 @@ class Live2DDesktopWindow:
         
         # Set up the screen with per-pixel alpha
         self.screen = pygame.display.set_mode((400, 600), pygame.NOFRAME)
-        pygame.display.set_caption("Live2D Desktop Mate")
+        pygame.display.set_caption("L2D.T.Lilit")
         
         # Set window to be always on top (platform-specific)
         self._setup_window_properties()

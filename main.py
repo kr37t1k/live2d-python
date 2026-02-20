@@ -72,7 +72,7 @@ def handle_get_clients_count(data):
 def handle_connect():
     """Handle client connection"""
     connected_clients.add(request.sid)
-    print(f'[+] Client connected: {request.sid}. Connected clients: {len(connected_clients)}')
+    print(f'[+] {time.strftime("%D - %H:%M:%S%p")} Client connected: {request.sid}. Connected clients: {len(connected_clients)}')
 
     # Send initial model state to newly connected client
     emit('model_state', asdict(model_state))
@@ -83,7 +83,7 @@ def handle_disconnect():
     """Handle client disconnection"""
     if request.sid in connected_clients:
         connected_clients.remove(request.sid)
-    print(f'[-] Client disconnected: {request.sid}. Connected clients: {len(connected_clients)}')
+    print(f'[-] {time.strftime("%D - %H:%M:%S%p")} Client disconnected: {request.sid}. Connected clients: {len(connected_clients)}')
 
 
 @socketio.on('set_parameter')
@@ -221,4 +221,5 @@ demo_thread.start()
 
 if __name__ == '__main__':
     print('Open http://localhost:5000')
+    print(time.strftime("%D - %H:%M:%S%p")) # %c is very good but use own format
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)

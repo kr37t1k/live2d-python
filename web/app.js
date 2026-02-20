@@ -454,7 +454,8 @@ async function loadModel() {
       const success = await AppState.character2d.loadModel(modelPath);
 
       if (success) {
-        AppState.character2d.startRenderLoop();
+//        AppState.character2d.renderDiagnosticQuad(); - Diagnostic successful, it show the model parts!
+        AppState.character2d.renderLoop();
         AppState.isModelLoaded = true;
         logger.info("✓ Model loaded and animation started successfully");
         showLoading(false);
@@ -467,7 +468,7 @@ async function loadModel() {
         throw new Error("Failed to load model (loadModel returned false)");
       }
     } else {
-      throw new Error("Live2DDesktopMate class not available");
+      throw new Error("Live2D... class not available");
     }
   } catch (error) {
     logger.error("Failed to load model", error);

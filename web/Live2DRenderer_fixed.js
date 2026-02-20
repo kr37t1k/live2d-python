@@ -1,7 +1,7 @@
 /**
- * Live2D Desktop Mate - Enhanced Renderer
+ * Live2D Desktop Mate - Enhanced Renderer (FIXED VERSION)
  * Production-ready implementation with comprehensive error handling, logging, and fallbacks
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 /**
@@ -207,6 +207,73 @@ class Live2DRenderer {
 
 
     /**
+     * Setup helper methods on the renderer for the shader manager
+     */
+    _setupRendererHelpers() {
+        const renderer = this.cubismRenderer;
+        const gl = this.gl;
+
+        // Helper method to get vertex buffers
+        renderer.getDrawableVertexBuffers = (model, index) => {
+            if (!renderer._drawableVertexBuffer) {
+                renderer._drawableVertexBuffer = gl.createBuffer();
+            }
+            
+            const vertexCount = model.getDrawableVertexCount(index);
+            const vertices = model.getDrawableVertices(index);
+            const uvs = model.getDrawableVertexUvs(index);
+            
+            // Build vertex array with position (3), uv (2), color (4) = 9 floats per vertex
+            const vertexArray = new Float32Array(vertexCount * 9);
+            
+            for (let i = 0; i < vertexCount; i++) {
+                const offset = i * 9;
+                vertexArray[offset] = vertices[i * 2];       // x
+                vertexArray[offset + 1] = vertices[i * 2 + 1]; // y
+                vertexArray[offset + 2] = 0;                 // z
+                vertexArray[offset + 3] = uvs[i * 2];        // u
+                vertexArray[offset + 4] = uvs[i * 2 + 1];    // v
+                vertexArray[offset + 5] = 1;                 // r
+                vertexArray[offset + 6] = 1;                 // g
+                vertexArray[offset + 7] = 1;                 // b
+                vertexArray[offset + 8] = 1;                 // a
+            }
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, renderer._drawableVertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.DYNAMIC_DRAW);
+            
+            return renderer._drawableVertexBuffer;
+        };
+
+        // Helper method to get index buffers
+        renderer.getDrawableIndexBuffers = (model, index) => {
+            if (!renderer._drawableIndexBuffer) {
+                renderer._drawableIndexBuffer = gl.createBuffer();
+            }
+            
+            const indexCount = model.getDrawableVertexIndexCount(index);
+            const indices = model.getDrawableVertexIndices(index);
+            
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderer._drawableIndexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.DYNAMIC_DRAW);
+            
+            return renderer._drawableIndexBuffer;
+        };
+
+        // Helper method to get MVP matrix
+        renderer.getMvpMatrix = () => {
+            return renderer._mvpMatrix;
+        };
+
+        // Helper method to get base color
+        renderer.getDrawableBaseColor = (index) => {
+            const model = renderer.getModel();
+            const opacity = model.getDrawableOpacity(index);
+            return { r: opacity, g: opacity, b: opacity, a: opacity };
+        };
+    }
+
+    /**
      * Load Live2D model using the official SDK workflow
      */
     async loadModel(modelPath) {
@@ -249,23 +316,28 @@ class Live2DRenderer {
 
             // 5. Create the official SDK renderer instance (CubismRenderer_WebGL)
             // This is the crucial step that handles the actual WebGL rendering
-            if (typeof cubismrenderer.CubismRenderer === 'undefined') {
-                 throw new Error('CubismRenderer_WebGL is not available. Check if cubismrenderer.js and associated WebGL renderer file are loaded.');
+            if (typeof CubismRenderer_WebGL === 'undefined') {
+                 throw new Error('CubismRenderer_WebGL is not available. Check if cubismrenderer.js and cubismrenderer_webgl.js are loaded.');
             }
-            this.cubismRenderer = new cubismrenderer.CubismRenderer(); // Create the official renderer
+            this.cubismRenderer = new CubismRenderer_WebGL(); // Create the WebGL renderer
 
-            // CRITICAL: Start up the renderer with WebGL context FIRST
+            // CRITICAL FIX #1: Start up the renderer with WebGL context FIRST
             this.cubismRenderer.startUp(this.gl);
+            this.logger.info('✓ CubismRenderer_WebGL started with WebGL context');
+
+            // Add helper methods needed by the shader manager
+            this._setupRendererHelpers();
 
             // Initialize the renderer with the core model
             this.cubismRenderer.initialize(model);
-            this.logger.info('✓ Official CubismRenderer created and initialized');
+            this.logger.info('✓ Official CubismRenderer_WebGL initialized');
 
             // 6. Load textures and bind them to the renderer
             await this.loadTextures(texturePaths);
 
-            // 7. Setup initial matrices (similar to before, but applied via the SDK renderer)
+            // 7. Setup initial matrices and render state
             this.setupMatrices();
+            this.setupRenderState();
 
             this.logger.info('✓ Model loaded successfully using official SDK');
             this.emit('loaded', { model: this.live2dModel });
@@ -283,10 +355,6 @@ class Live2DRenderer {
      */
     async loadTextures(texturePaths) {
         this.logger.info('Loading textures for official renderer...', { count: texturePaths.length });
-        // This is a simplified texture loading. In a real scenario, you might manage textures externally
-        // and pass the WebGL texture IDs to the SDK renderer.
-        // The SDK renderer often expects textures to be managed by the application layer.
-        // Let's assume a basic loading mechanism here that registers textures.
 
         // Create a temporary map to hold loaded textures
         const tempTextureMap = new Map();
@@ -307,28 +375,18 @@ class Live2DRenderer {
             }
         }
 
-        // Associate textures with drawables using the SDK renderer's method
-        // This assumes the texture IDs in the model file correspond to the order loaded.
-        // The actual association might require more complex logic based on the model file structure.
-        // The SDK renderer usually handles this internally if textures are bound correctly before drawing.
-        // For now, we'll just store the textures and assume the renderer knows how to use them based on the core model's texture index data.
-        // In the official examples, texture loading happens separately, and the renderer is told which GL texture ID corresponds to which model texture index.
-        // We'll mimic that here by assuming the loaded textures are in the correct order (ID 0, 1, 2...).
-        // The renderer uses model.getDrawableTextureIndices() internally or similar.
-        // The key is that the WebGL texture IDs must be correctly bound during the draw call.
-        // The official CubismRenderer_WebGL handles this if textures are set up correctly beforehand.
-        // We'll assume the renderer will use the correct texture based on the core model's data during drawModel().
-        this.textures = Array.from(tempTextureMap.values()); // Store for potential future use if needed by custom logic
-        this.textureMap = tempTextureMap; // Map ID -> GL Texture
-        this.logger.info('✓ Textures loaded and mapped', { count: this.textures.length });
+        // CRITICAL FIX #2: Bind textures to the renderer using bindTexture method
+        // The renderer expects textures to be bound with model texture indices
+        const loadedTextures = Array.from(tempTextureMap.values());
+        for (let i = 0; i < loadedTextures.length; i++) {
+            this.cubismRenderer.bindTexture(i, loadedTextures[i]);
+            this.logger.debug(`✓ Texture ${i} bound to renderer`);
+        }
 
-        // Inform the renderer about the textures (this is the typical SDK way)
-        // The renderer often expects texture setup to happen via the application layer *before* calling drawModel.
-        // In the official workflow, you bind textures manually before drawModel IF you are handling texture loading yourself.
-        // However, the SDK often provides utilities or expects a specific texture management pattern.
-        // For simplicity here, we assume the renderer will pick up the correct texture based on the core model's internal data.
-        // If the model doesn't show, this texture binding step during the render loop might be the culprit.
-        // Let's try binding them temporarily in the render function based on drawable info.
+        // Store textures for cleanup
+        this.textures = loadedTextures;
+        this.textureMap = tempTextureMap;
+        this.logger.info('✓ Textures loaded and bound to renderer', { count: this.textures.length });
     }
 
     /**
@@ -386,9 +444,6 @@ class Live2DRenderer {
     setupMatrices() {
         this.logger.debug('Setting up transformation matrices...');
         // Use the SDK's matrix class if available, otherwise use your custom one
-        // Assuming Matrix44 from your original file is available or using a standard approach
-        // The important thing is setting up a model matrix that places the model correctly in the view.
-        // The SDK renderer applies its own internal transforms based on the model's canvas size and the view/proj matrices.
         this.modelMatrix = new CubismMatrix44(); // Use SDK matrix
         this.viewMatrix = new CubismMatrix44(); // Use SDK matrix
         this.projMatrix = new CubismMatrix44(); // Use SDK matrix
@@ -402,8 +457,7 @@ class Live2DRenderer {
         // The model's origin (0,0) is typically the center of its canvas.
         // Translate to center it on the HTML canvas.
         this.modelMatrix.translateRelative(this.canvas.width / 2.0, this.canvas.height / 2.0);
-        // The Y-axis in Live2D models is typically inverted compared to screen coordinates.
-        // The SDK renderer usually handles this, but ensure your projection/view matrices account for it if needed.
+        
         // Standard orthographic projection for 2D rendering covering the canvas pixel area.
         this.projMatrix.setMatrix([
             2.0 / this.canvas.width, 0, 0, 0,
@@ -412,12 +466,21 @@ class Live2DRenderer {
             -1, 1, 0, 1
         ]);
 
-        // Pass the MVP matrix to the SDK renderer (if it has a direct setter, less common)
-        // Usually, the renderer calculates its internal matrix based on model, view, proj passed implicitly or via a helper.
-        // The SDK renderer (CubismRenderer_WebGL) integrates tightly with the model instance.
-        // Its drawModel() function uses the model's internal state and the matrices set up by the application/view layer.
-
         this.logger.debug('✓ Matrices initialized', { scale, modelWidth, modelHeight });
+    }
+
+    /**
+     * Setup render state for the SDK renderer
+     */
+    setupRenderState() {
+        this.logger.debug('Setting up render state...');
+        // Get the current framebuffer and viewport
+        const fbo = this.gl.getParameter(this.gl.FRAMEBUFFER_BINDING);
+        const viewport = this.gl.getParameter(this.gl.VIEWPORT);
+        
+        // Pass these to the renderer
+        this.cubismRenderer.setRenderState(fbo, viewport);
+        this.logger.debug('✓ Render state set', { fbo, viewport });
     }
 
 
@@ -427,25 +490,7 @@ class Live2DRenderer {
     update(deltaTimeSeconds) {
         if (!this.live2dModel) return;
         try {
-            // The core model update happens here. This updates parameter values, pose, etc.
-            // The official renderer reads this updated state during drawModel().
-            // Update drag manager (if implemented)
-            // if (this.dragManager) {
-            //     this.dragManager.update(deltaTimeSeconds);
-            // }
-            // Update physics if enabled (requires physics setup)
-            // if (this.physics && this.options.enablePhysics) {
-            //     this.updatePhysics(deltaTimeSeconds);
-            // }
-            // Update expressions (requires expression setup)
-            // if (this.expressionManager) {
-            //     this.expressionManager.update(this.live2dModel, deltaTimeSeconds);
-            // }
-            // Auto breathing (requires parameter setup)
-            // if (this.options.autoBreathing) {
-            //     this.updateBreathing(deltaTimeSeconds);
-            // }
-            // *** CRITICAL ***: Call the core model's update function.
+            // CRITICAL: Call the core model's update function.
             // This is what advances the model's internal state (animations, expressions, physics if applied).
             this.live2dModel.update();
 
@@ -454,6 +499,65 @@ class Live2DRenderer {
         } catch (error) {
             this.logger.error('Error during model update', error);
         }
+    }
+
+    /**
+     * Helper methods for shader manager
+     */
+    getDrawableVertexBuffers(model, index) {
+        if (!this.cubismRenderer._drawableVertexBuffer) {
+            this.cubismRenderer._drawableVertexBuffer = this.gl.createBuffer();
+        }
+        
+        const vertexCount = model.getDrawableVertexCount(index);
+        const vertices = model.getDrawableVertices(index);
+        
+        // Build vertex array with position (3), uv (2), color (4) = 9 floats per vertex
+        const vertexArray = new Float32Array(vertexCount * 9);
+        const uvs = model.getDrawableVertexUvs(index);
+        
+        for (let i = 0; i < vertexCount; i++) {
+            const offset = i * 9;
+            vertexArray[offset] = vertices[i * 2];       // x
+            vertexArray[offset + 1] = vertices[i * 2 + 1]; // y
+            vertexArray[offset + 2] = 0;                 // z
+            vertexArray[offset + 3] = uvs[i * 2];        // u
+            vertexArray[offset + 4] = uvs[i * 2 + 1];    // v
+            vertexArray[offset + 5] = 1;                 // r
+            vertexArray[offset + 6] = 1;                 // g
+            vertexArray[offset + 7] = 1;                 // b
+            vertexArray[offset + 8] = 1;                 // a
+        }
+        
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.cubismRenderer._drawableVertexBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertexArray, this.gl.DYNAMIC_DRAW);
+        
+        return this.cubismRenderer._drawableVertexBuffer;
+    }
+
+    getDrawableIndexBuffers(model, index) {
+        if (!this.cubismRenderer._drawableIndexBuffer) {
+            this.cubismRenderer._drawableIndexBuffer = this.gl.createBuffer();
+        }
+        
+        const indexCount = model.getDrawableVertexIndexCount(index);
+        const indices = model.getDrawableVertexIndices(index);
+        
+        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.cubismRenderer._drawableIndexBuffer);
+        this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, indices, this.gl.DYNAMIC_DRAW);
+        
+        return this.cubismRenderer._drawableIndexBuffer;
+    }
+
+    getMvpMatrix() {
+        // Return the MVP matrix stored in the renderer (set in render method)
+        return this.cubismRenderer._mvpMatrix;
+    }
+
+    getDrawableBaseColor(index) {
+        const model = this.live2dModel;
+        const r = model.getDrawableOpacity(index);
+        return { r: r, g: r, b: r, a: r };
     }
 
     /**
@@ -473,20 +577,19 @@ class Live2DRenderer {
             gl.enable(gl.BLEND); // Ensure blending is enabled
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Standard alpha blending
 
-            // *** CRITICAL ***: Use the official SDK renderer's draw function.
-            // This function encapsulates all the complex WebGL calls, buffer management,
-            // shader usage, and texture binding based on the core model's state.
-            // Before calling drawModel, we might need to set the MVP matrix if the renderer requires it explicitly.
-            // Often, the renderer uses matrices set up by the application layer (like this.viewMatrix, this.projMatrix)
-            // implicitly or through a helper function provided by the framework.
+            // CRITICAL FIX #3: Ensure render state is set before drawing
+            const fbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+            const viewport = gl.getParameter(gl.VIEWPORT);
+            this.cubismRenderer.setRenderState(fbo, viewport);
 
-            // Option 1: If the renderer has a direct method to set the matrix (less common)
-            // this.cubismRenderer.setMvpMatrix(this.projMatrix); // Or a combined MVP calculated from model/view/proj
-
-            // Option 2: The renderer typically gets matrices from the model or a context implicitly.
-            // The application sets up view/proj, and the renderer uses the model's internal transforms.
-            // Ensure the renderer knows about the current view/proj context if needed.
-            // The SDK renderer is designed to work closely with the model instance it was initialized with.
+            // Set up the model-view-projection matrix
+            // The renderer needs to know the projection and model matrices
+            const mvp = new CubismMatrix44();
+            mvp.multiplyByMatrix(this.projMatrix);
+            mvp.multiplyByMatrix(this.modelMatrix);
+            
+            // Store the MVP matrix for the shader manager to use
+            this.cubismRenderer._mvpMatrix = mvp;
 
             // Perform the draw operation using the SDK
             this.cubismRenderer.drawModel(); // This is the key call that renders the model
@@ -499,9 +602,9 @@ class Live2DRenderer {
     }
 
 
-    // --- Other methods like setParameter, updatePhysics, etc., remain mostly the same ---
-    // They interact with the core model instance (this.live2dModel).
-    // Example for setParameter:
+    /**
+     * Set parameter value
+     */
     setParameter(parameterId, value) {
         if (!this.live2dModel) {
              this.logger.warn('Cannot set parameter: model not loaded', { parameterId });
@@ -518,7 +621,7 @@ class Live2DRenderer {
                  this.logger.debug('Parameter not found', { parameterId });
             }
         } catch (error) {
-//             this.logger.error('Failed to set parameter', { parameterId, value, error });
+            this.logger.error('Failed to set parameter', { parameterId, value, error });
         }
     }
 
@@ -535,8 +638,6 @@ class Live2DRenderer {
              return 0;
          }
     }
-
-    // ... (Implement other methods like update, playMotion, setExpression, etc., interacting with this.live2dModel) ...
 
 
     /**
@@ -636,7 +737,7 @@ class Live2DRenderer {
 
         // Release the official SDK renderer
         if (this.cubismRenderer) {
-             cubismrenderer.CubismRenderer.delete(this.cubismRenderer); // Use SDK's delete function
+             this.cubismRenderer.release();
              this.cubismRenderer = null;
              this.logger.info('✓ Official CubismRenderer released');
         }
@@ -647,7 +748,7 @@ class Live2DRenderer {
              // The renderer holds a reference to it.
              this.live2dModel = null;
         }
-''
+
         // Cleanup textures (if managed here)
         for (const texture of this.textures) {
             if (texture) {

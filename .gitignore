@@ -1,1 +1,2 @@
 Nothing should be ignored since the changes only include source files (.py, .js, .html, .css) without any build artifacts, dependencies, or temporary files.
+/.elastic-copilot

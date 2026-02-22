@@ -216,8 +216,8 @@ def demo_loop():
 
 
 # Run demo animation in background thread
-demo_thread = threading.Thread(target=demo_loop, daemon=True)
-demo_thread.start()
+# demo_thread = threading.Thread(target=demo_loop, daemon=True)
+# demo_thread.start()
 
 if __name__ == '__main__':
     print('Open http://localhost:5000')

@@ -44,6 +44,14 @@
         }
     }
 
+    // CubismRenderer_WebGL - WebGL renderer
+    if (typeof window.CubismRenderer_WebGL === 'undefined') {
+        if (typeof cubismrenderer !== 'undefined' && cubismrenderer.CubismRenderer) {
+            window.CubismRenderer_WebGL = cubismrenderer.CubismRenderer;
+            console.log('[CubismGlobals] CubismRenderer_WebGL alias exported');
+        }
+    }
+
     // CubismClippingContext - for clipping masks
     if (typeof window.CubismClippingContext === 'undefined') {
         if (typeof cubismrenderer !== 'undefined' && cubismrenderer.CubismClippingContext) {

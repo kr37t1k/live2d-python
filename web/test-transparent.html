@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Test - Transparent Renderer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            /* Checkerboard pattern to show transparency */
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%),
+                linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #ccc 75%),
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: white;
+        }
+
+        #live2dCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        #info h3 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+        }
+
+        #info p {
+            margin: 5px 0;
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="live2dCanvas"></canvas>
+    
+    <div id="info">
+        <h3>Live2D Transparent Renderer Test</h3>
+        <p>Canvas: <span id="canvasSize">Loading...</span></p>
+        <p>Model: <span id="modelStatus">Loading...</span></p>
+        <p>FPS: <span id="fps">0</span></p>
+        <p style="margin-top: 10px; color: #aaa;">Checkerboard pattern shows transparency</p>
+    </div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading Live2D Model...</p>
+    </div>
+
+    <!-- Live2D SDK -->
+    <script src="live2dcubismcore.min.js"></script>
+    <script src="cubismframework.js"></script>
+    <script src="cubismmatrix44.js"></script>
+    <script src="cubismrenderer.js"></script>
+    <script src="cubismrenderer_webgl.js"></script>
+    <script src="cubismshadermanager.js"></script>
+    <script src="cubism_globals.js"></script>
+    <script src="Live2DTransparentRenderer.js"></script>
+
+    <script>
+        let renderer = null;
+        let frameCount = 0;
+        let lastFpsUpdate = Date.now();
+        let currentFps = 0;
+
+        window.addEventListener('load', async () => {
+            const canvas = document.getElementById('live2dCanvas');
+            const canvasSizeEl = document.getElementById('canvasSize');
+            const modelStatusEl = document.getElementById('modelStatus');
+            const fpsEl = document.getElementById('fps');
+            const loadingEl = document.getElementById('loading');
+
+            // Update canvas size display
+            function updateCanvasSize() {
+                canvasSizeEl.textContent = `${canvas.width}x${canvas.height}`;
+            }
+
+            // FPS counter
+            function updateFps() {
+                frameCount++;
+                const now = Date.now();
+                if (now - lastFpsUpdate >= 1000) {
+                    currentFps = frameCount;
+                    frameCount = 0;
+                    lastFpsUpdate = now;
+                    fpsEl.textContent = currentFps;
+                }
+                requestAnimationFrame(updateFps);
+            }
+
+            try {
+                // Create renderer
+                renderer = new Live2DTransparentRenderer(canvas, {
+                    scale: 1.0,
+                    premultipliedAlpha: true
+                });
+
+                updateCanvasSize();
+
+                // Load model
+                modelStatusEl.textContent = 'Loading Hiyori model...';
+                const success = await renderer.loadModel('models/Hiyori/Hiyori.model3.json');
+
+                if (success) {
+                    modelStatusEl.textContent = '✓ Hiyori model loaded';
+                    loadingEl.style.display = 'none';
+                    updateFps();
+                    console.log('[Test] ✓ Model loaded successfully');
+                } else {
+                    modelStatusEl.textContent = '✗ Failed to load model';
+                    loadingEl.innerHTML = '<p style="color: #f44336;">Failed to load model</p>';
+                    console.error('[Test] ✗ Failed to load model');
+                }
+
+            } catch (error) {
+                console.error('[Test] Error:', error);
+                modelStatusEl.textContent = '✗ Error: ' + error.message;
+                loadingEl.innerHTML = `<p style="color: #f44336;">Error: ${error.message}</p>`;
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (renderer) {
+                const canvasSizeEl = document.getElementById('canvasSize');
+                canvasSizeEl.textContent = `${renderer.canvas.width}x${renderer.canvas.height}`;
+            }
+        });
+
+        // Cleanup on unload
+        window.addEventListener('beforeunload', () => {
+            if (renderer) {
+                renderer.destroy();
+            }
+        });
+    </script>
+</body>
+</html>

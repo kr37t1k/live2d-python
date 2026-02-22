@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Standalone Renderer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            /* Transparent background - change this to any color or remove for full transparency */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        #live2dCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Loading indicator */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 18px;
+            text-align: center;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error display */
+        #error {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            text-align: center;
+            z-index: 1001;
+            display: none;
+            max-width: 500px;
+        }
+
+        #error h3 {
+            color: #f44336;
+            margin-bottom: 15px;
+            font-size: 22px;
+        }
+
+        #error p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        #error button {
+            padding: 12px 24px;
+            background: #5d4dc2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        #error button:hover {
+            background: #4a3da0;
+        }
+
+        /* Model selector */
+        #modelSelector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #modelSelector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #modelSelector select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="live2dCanvas"></canvas>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading Live2D Model...</p>
+    </div>
+    
+    <div id="error">
+        <h3>⚠️ Error</h3>
+        <p id="errorMessage"></p>
+        <button onclick="location.reload()">Try Again</button>
+    </div>
+
+    <div id="modelSelector">
+        <label for="modelSelect">Select Model:</label>
+        <select id="modelSelect">
+            <option value="models/Hiyori/Hiyori.model3.json">Hiyori</option>
+            <option value="models/香風智乃/香風智乃.model3.json">香風智乃 (Chino)</option>
+            <option value="models/huohuo/huohuo.model3.json">Huohuo</option>
+        </select>
+    </div>
+
+    <!-- Live2D Cubism Core -->
+    <script src="live2dcubismcore.min.js"></script>
+    
+    <!-- Live2D Cubism Framework -->
+    <script src="cubismframework.js"></script>
+    
+    <!-- Matrix utilities -->
+    <script src="cubismmatrix44.js"></script>
+    
+    <!-- Renderer -->
+    <script src="cubismrenderer.js"></script>
+    
+    <!-- WebGL Renderer -->
+    <script src="cubismrenderer_webgl.js"></script>
+    
+    <!-- Shader Manager -->
+    <script src="cubismshadermanager.js"></script>
+    
+    <!-- Global exports -->
+    <script src="cubism_globals.js"></script>
+    
+    <!-- Application Renderer -->
+    <script src="Live2DTransparentRenderer.js"></script>
+    
+    <script>
+        // Override initialization to use model selector
+        window.addEventListener('load', async () => {
+            console.log('[Live2D] Standalone page loaded');
+            
+            const canvas = document.getElementById('live2dCanvas');
+            const modelSelect = document.getElementById('modelSelect');
+            
+            if (!canvas) {
+                showError('Canvas element not found');
+                return;
+            }
+
+            // Create renderer instance
+            const renderer = new Live2DTransparentRenderer(canvas, {
+                scale: 1.0,
+                premultipliedAlpha: true
+            });
+
+            // Store globally
+            window.live2dRenderer = renderer;
+
+            // Function to load selected model
+            async function loadSelectedModel() {
+                const modelPath = modelSelect.value;
+                console.log('[Live2D] Loading model:', modelPath);
+                
+                // Show loading
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                
+                // Destroy previous model if exists
+                if (renderer.isLoaded) {
+                    // Just clear the loaded flag, don't destroy the renderer
+                    renderer.isLoaded = false;
+                }
+
+                const success = await renderer.loadModel(modelPath);
+                
+                if (!success) {
+                    showError('Failed to load Live2D model: ' + modelPath);
+                }
+            }
+
+            // Load initial model
+            await loadSelectedModel();
+
+            // Handle model selection change
+            modelSelect.addEventListener('change', loadSelectedModel);
+
+            console.log('[Live2D] Standalone initialization complete');
+        });
+    </script>
+</body>
+</html>

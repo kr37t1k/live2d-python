@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Transparent Renderer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            /* Transparent background - you can set any color or image behind */
+            background: transparent;
+            background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        #live2dCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Optional: Loading indicator */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #error {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            z-index: 1001;
+            display: none;
+        }
+
+        #error h3 {
+            color: #f44336;
+            margin-bottom: 10px;
+        }
+
+        #error button {
+            margin-top: 15px;
+            padding: 8px 16px;
+            background: #5d4dc2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #error button:hover {
+            background: #4a3da0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="live2dCanvas"></canvas>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading Live2D Model...</p>
+    </div>
+    
+    <div id="error">
+        <h3>Error</h3>
+        <p id="errorMessage"></p>
+        <button onclick="location.reload()">Retry</button>
+    </div>
+
+    <!-- Live2D Cubism Core -->
+    <script src="live2dcubismcore.min.js"></script>
+    
+    <!-- Live2D Cubism Framework -->
+    <script src="cubismframework.js"></script>
+    
+    <!-- Matrix utilities -->
+    <script src="cubismmatrix44.js"></script>
+    
+    <!-- Renderer -->
+    <script src="cubismrenderer.js"></script>
+    
+    <!-- WebGL Renderer -->
+    <script src="cubismrenderer_webgl.js"></script>
+    
+    <!-- Shader Manager -->
+    <script src="cubismshadermanager.js"></script>
+    
+    <!-- Global exports -->
+    <script src="cubism_globals.js"></script>
+    
+    <!-- Application Renderer -->
+    <script src="Live2DTransparentRenderer.js"></script>
+</body>
+</html>

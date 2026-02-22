@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Transparent Renderer - Examples</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 50px;
+            font-size: 1.2em;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 50px;
+        }
+
+        .feature {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 217, 255, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .feature h3 {
+            color: #00d9ff;
+            margin-bottom: 10px;
+        }
+
+        .examples {
+            margin-bottom: 50px;
+        }
+
+        .examples h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #00ff88;
+        }
+
+        .example-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .example-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .example-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.2);
+        }
+
+        .example-preview {
+            height: 200px;
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 255, 136, 0.1));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4em;
+        }
+
+        .example-content {
+            padding: 25px;
+        }
+
+        .example-content h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+
+        .example-content p {
+            color: #aaa;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        .badge.recommended {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .docs {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .docs h2 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+        }
+
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .doc-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0, 217, 255, 0.1);
+            border-radius: 10px;
+            text-decoration: none;
+            color: white;
+            transition: background 0.3s;
+        }
+
+        .doc-link:hover {
+            background: rgba(0, 217, 255, 0.2);
+        }
+
+        .doc-icon {
+            font-size: 2em;
+            margin-right: 15px;
+        }
+
+        .doc-info h4 {
+            color: #00d9ff;
+            margin-bottom: 5px;
+        }
+
+        .doc-info p {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #666;
+        }
+
+        .footer a {
+            color: #00d9ff;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .subtitle {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Live2D Transparent Renderer</h1>
+        <p class="subtitle">Production-ready Live2D web renderer with full transparency support</p>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">✨</div>
+                <h3>Transparent Background</h3>
+                <p>Full alpha channel support for seamless integration</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🚀</div>
+                <h3>Production Ready</h3>
+                <p>Robust error handling and resource management</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎨</div>
+                <h3>Clean Code</h3>
+                <p>Simple, maintainable, well-documented</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>High Performance</h3>
+                <p>Optimized rendering at 30-60 FPS</p>
+            </div>
+        </div>
+
+        <div class="examples">
+            <h2>📱 Interactive Examples</h2>
+            <div class="example-grid">
+                <div class="example-card">
+                    <div class="example-preview">🧪</div>
+                    <div class="example-content">
+                        <h3>Test Page</h3>
+                        <p>Testing page with transparency checkerboard and FPS counter. Perfect for verifying transparency support.</p>
+                        <div>
+                            <span class="badge recommended">Recommended</span>
+                            <span class="badge">Testing</span>
+                        </div>
+                        <br><br>
+                        <a href="test-transparent.html" class="btn">Open Test</a>
+                    </div>
+                </div>
+
+                <div class="example-card">
+                    <div class="example-preview">🎮</div>
+                    <div class="example-content">
+                        <h3>Interactive Example</h3>
+                        <p>Mouse tracking and click interactions. The model follows your cursor and responds to clicks!</p>
+                        <div>
+                            <span class="badge recommended">Interactive</span>
+                            <span class="badge">Fun</span>
+                        </div>
+                        <br><br>
+                        <a href="example-interaction.html" class="btn">Try It</a>
+                    </div>
+                </div>
+
+                <div class="example-card">
+                    <div class="example-preview">🎭</div>
+                    <div class="example-content">
+                        <h3>Standalone</h3>
+                        <p>Full-featured page with model selector dropdown. Switch between different Live2D models easily.</p>
+                        <div>
+                            <span class="badge">Model Selector</span>
+                            <span class="badge">Complete</span>
+                        </div>
+                        <br><br>
+                        <a href="standalone.html" class="btn">Open</a>
+                    </div>
+                </div>
+
+                <div class="example-card">
+                    <div class="example-preview">📄</div>
+                    <div class="example-content">
+                        <h3>Simple Renderer</h3>
+                        <p>Minimal implementation with just the canvas. Perfect for integration into your own projects.</p>
+                        <div>
+                            <span class="badge">Minimal</span>
+                            <span class="badge">Integration</span>
+                        </div>
+                        <br><br>
+                        <a href="index-transparent.html" class="btn">Open</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="docs">
+            <h2>📚 Documentation</h2>
+            <div class="docs-grid">
+                <a href="QUICKSTART.md" class="doc-link" target="_blank">
+                    <div class="doc-icon">🚀</div>
+                    <div class="doc-info">
+                        <h4>Quick Start</h4>
+                        <p>Get started in 5 minutes</p>
+                    </div>
+                </a>
+
+                <a href="FIX_SUMMARY.md" class="doc-link" target="_blank">
+                    <div class="doc-icon">🔧</div>
+                    <div class="doc-info">
+                        <h4>Fix Summary</h4>
+                        <p>What was fixed and why</p>
+                    </div>
+                </a>
+
+                <a href="TRANSPARENT_RENDERER_README.md" class="doc-link" target="_blank">
+                    <div class="doc-icon">📖</div>
+                    <div class="doc-info">
+                        <h4>Full Documentation</h4>
+                        <p>Complete API reference</p>
+                    </div>
+                </a>
+
+                <a href="IMPLEMENTATION_COMPLETE.md" class="doc-link" target="_blank">
+                    <div class="doc-icon">✅</div>
+                    <div class="doc-info">
+                        <h4>Implementation</h4>
+                        <p>Complete overview</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>
+                <strong>Live2D Transparent Renderer v1.0.0</strong> | 
+                MIT License | 
+                <a href="https://www.live2d.com/" target="_blank">Live2D</a>
+            </p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                Made with ❤️ for the Live2D community
+            </p>
+        </div>
+    </div>
+</body>
+</html>
